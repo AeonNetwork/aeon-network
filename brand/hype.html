@@ -1,0 +1,320 @@
+<!doctype html>
+<!-- AEON × PONS hype video (1920x1080). Pure canvas, driven by window.render(t) so every
+     frame is deterministic and locked to the 128 BPM soundtrack in brand/hype-sound.mjs.
+     The recorder injects window.PONS (the Pons logo as a data URL). -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+const B = 60 / 128, BAR = 4 * B, bar = (n) => n * BAR;
+const c = document.getElementById('c'), x = c.getContext('2d');
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const easeOut = (k) => 1 - (1 - k) ** 3;
+const easeIn = (k) => k ** 3;
+const back = (k) => 1 + 2.4 * (k - 1) ** 3 + 1.4 * (k - 1) ** 2;
+let seed = 4663;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+// ---------- timeline (mirrors the soundtrack) ----------
+const kicks = [];
+for (let b = 0; b < 2; b++) for (const o of [0, 0.75, 2, 2.75]) kicks.push([bar(b) + o * B, o % 2 ? 0.5 : 0.8]);
+for (let t = bar(2); t < bar(4) - B; t += B) kicks.push([t, 0.8]);
+for (let b = 4; b < 8; b++) for (let s = 0; s < 4; s++) kicks.push([bar(b) + s * B, 1]);
+for (let s = 0; s < 4; s++) kicks.push([bar(8) + s * B, 0.3]);
+for (let b = 9; b < 12; b++) for (let s = 0; s < 4; s++) kicks.push([bar(b) + s * B, 1]);
+const impacts = [[bar(4), 1], [bar(6), 0.6], [bar(9), 1.2], [bar(12), 1]];
+const env = (t, list, decay) => list.reduce((m, [k, g]) => (t >= k ? Math.max(m, g * Math.exp(-(t - k) / decay)) : m), 0);
+const claps = [];
+for (const b of [4, 5, 6, 7, 9, 10, 11]) claps.push([bar(b) + B, 1], [bar(b) + 3 * B, 1]);
+
+// ---------- assets ----------
+const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'].map((d) => new Path2D(d));
+const AE_W = 208, AE_H = 188; // glyph box (96..304, 106..294)
+function drawAE(cx, cy, h, alpha = 1, glow = 0) {
+  const s = h / AE_H;
+  x.save();
+  x.globalAlpha = alpha;
+  x.translate(cx - (AE_W * s) / 2, cy - h / 2);
+  x.scale(s, s);
+  x.translate(-96, -106);
+  x.fillStyle = '#fff';
+  if (glow) (x.shadowColor = 'rgba(255,255,255,0.9)'), (x.shadowBlur = glow);
+  AE.forEach((p) => x.fill(p));
+  x.restore();
+}
+// Particle targets sampled from the Æ glyph.
+const targets = [];
+{
+  const o = new OffscreenCanvas(W, H), g = o.getContext('2d');
+  const h = 360, s = h / AE_H;
+  g.translate(CX - (AE_W * s) / 2, CY - 40 - h / 2);
+  g.scale(s, s);
+  g.translate(-96, -106);
+  g.fillStyle = '#fff';
+  AE.forEach((p) => g.fill(p));
+  const d = g.getImageData(0, 0, W, H).data;
+  for (let y = 0; y < H; y += 5) for (let xx = 0; xx < W; xx += 5) if (d[(y * W + xx) * 4 + 3] > 128) targets.push([xx, y]);
+}
+const P = [];
+for (let i = 0; i < 2200; i++) {
+  const a = rnd() * Math.PI * 2;
+  P.push({ a, r: 1 + (rnd() - 0.5) * 0.08, sp: 0.6 + rnd() * 0.8, tgt: targets[i % targets.length], vx: 0, vy: 0, b: 0.4 + rnd() * 0.6 });
+}
+// Pons logo with its white background keyed out (flood fill from the edges).
+let pons = null, ponsW = 0, ponsH = 0;
+const ponsReady = new Promise((res) => {
+  const img = new Image();
+  img.onload = () => {
+    const o = new OffscreenCanvas(img.width, img.height), g = o.getContext('2d');
+    g.drawImage(img, 0, 0);
+    const id = g.getImageData(0, 0, img.width, img.height), d = id.data, w = img.width, h = img.height;
+    const seen = new Uint8Array(w * h), stack = [];
+    for (let i = 0; i < w; i++) stack.push(i, (h - 1) * w + i);
+    for (let j = 0; j < h; j++) stack.push(j * w, j * w + w - 1);
+    while (stack.length) {
+      const p = stack.pop();
+      if (seen[p]) continue;
+      const r = d[p * 4], gg = d[p * 4 + 1], bb = d[p * 4 + 2];
+      if (Math.min(r, gg, bb) < 222) continue;
+      seen[p] = 1;
+      d[p * 4 + 3] = 0;
+      const px = p % w, py = (p / w) | 0;
+      if (px > 0) stack.push(p - 1);
+      if (px < w - 1) stack.push(p + 1);
+      if (py > 0) stack.push(p - w);
+      if (py < h - 1) stack.push(p + w);
+    }
+    // Soften the cut edge.
+    for (let p = 0; p < w * h; p++) if (!seen[p]) {
+      const px = p % w, py = (p / w) | 0;
+      const n = (px > 0 && seen[p - 1]) + (px < w - 1 && seen[p + 1]) + (py > 0 && seen[p - w]) + (py < h - 1 && seen[p + w]);
+      if (n) d[p * 4 + 3] = 255 - n * 50;
+    }
+    g.putImageData(id, 0, 0);
+    // Crop to the logo itself.
+    let x0 = w, y0 = h, x1 = 0, y1 = 0;
+    for (let p = 0; p < w * h; p++) if (d[p * 4 + 3] > 20) {
+      const px = p % w, py = (p / w) | 0;
+      x0 = Math.min(x0, px); y0 = Math.min(y0, py); x1 = Math.max(x1, px); y1 = Math.max(y1, py);
+    }
+    ponsW = x1 - x0 + 1; ponsH = y1 - y0 + 1;
+    pons = new OffscreenCanvas(ponsW, ponsH);
+    pons.getContext('2d').drawImage(o, x0, y0, ponsW, ponsH, 0, 0, ponsW, ponsH);
+    res();
+  };
+  img.src = window.PONS;
+});
+const shineCanvas = new OffscreenCanvas(1000, 1000), sx = shineCanvas.getContext('2d');
+function drawPons(cx, cy, h, alpha = 1, shine = -1, glow = 0) {
+  if (!pons) return;
+  const w = (ponsW / ponsH) * h;
+  shineCanvas.width = Math.ceil(w); shineCanvas.height = Math.ceil(h);
+  sx.imageSmoothingQuality = 'high';
+  sx.drawImage(pons, 0, 0, w, h);
+  if (shine >= 0 && shine <= 1) {
+    sx.globalCompositeOperation = 'source-atop';
+    const px = -w + shine * w * 3;
+    const gr = sx.createLinearGradient(px, 0, px + w * 0.6, h);
+    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    sx.fillStyle = gr; sx.fillRect(0, 0, w, h);
+    sx.globalCompositeOperation = 'source-over';
+  }
+  x.save();
+  x.globalAlpha = alpha;
+  if (glow) (x.shadowColor = 'rgba(190,255,200,0.6)'), (x.shadowBlur = glow);
+  x.drawImage(shineCanvas, cx - w / 2, cy - h / 2, w, h);
+  x.restore();
+}
+
+function text(str, px, py, { size = 120, weight = 800, font = 'Geist', color = '#fff', alpha = 1, spacing = 0, align = 'center', scale = 1 } = {}) {
+  x.save();
+  x.globalAlpha = alpha;
+  x.translate(px, py);
+  x.scale(scale, scale);
+  x.font = `${weight} ${size}px "${font}"`;
+  x.letterSpacing = spacing + 'px';
+  x.textAlign = align;
+  x.textBaseline = 'middle';
+  x.fillStyle = color;
+  x.fillText(str, 0, 0);
+  x.restore();
+}
+function cross(cx, cy, s, alpha) {
+  x.save();
+  x.globalAlpha = alpha;
+  x.strokeStyle = '#fff';
+  x.lineWidth = Math.max(2, s * 0.09);
+  x.lineCap = 'square';
+  x.beginPath();
+  x.moveTo(cx - s / 2, cy - s / 2); x.lineTo(cx + s / 2, cy + s / 2);
+  x.moveTo(cx + s / 2, cy - s / 2); x.lineTo(cx - s / 2, cy + s / 2);
+  x.stroke();
+  x.restore();
+}
+
+// ---------- frame ----------
+const BUILD = ['EVERY', 'BLOCK.', 'EVERY', 'TRADE.', 'LIVE.', 'ON', 'CHAIN.'];
+const DROP2 = ['LIVE.', 'ON-CHAIN.', 'REAL.', 'TOGETHER.'];
+window.render = (t) => {
+  const kE = env(t, kicks, 0.11), iE = env(t, impacts, 0.3), cE = env(t, claps, 0.07);
+  const inDrop = (t >= bar(4) && t < bar(8)) || (t >= bar(9) && t < bar(12));
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.fillStyle = '#000';
+  x.fillRect(0, 0, W, H);
+
+  // camera: shake on impacts and drop kicks, zoom pulse on kicks
+  const shake = iE * 26 + (inDrop ? kE * 6 : 0);
+  const zoom = 1 + kE * (inDrop ? 0.03 : 0.012) + iE * 0.05;
+  x.translate(CX + (rnd() - 0.5) * shake, CY + (rnd() - 0.5) * shake);
+  x.scale(zoom, zoom);
+  x.translate(-CX, -CY);
+
+  // grid, lit by the beat in the drops
+  x.save();
+  x.strokeStyle = `rgba(255,255,255,${0.035 + (inDrop ? kE * 0.08 : 0)})`;
+  x.lineWidth = 1;
+  for (let gx = 0; gx <= W; gx += 80) (x.beginPath(), x.moveTo(gx, 0), x.lineTo(gx, H), x.stroke());
+  for (let gy = 0; gy <= H; gy += 80) (x.beginPath(), x.moveTo(0, gy), x.lineTo(W, gy), x.stroke());
+  x.restore();
+
+  // ---------- particles ----------
+  const gapBuild = t >= bar(4) - B / 2 && t < bar(4);
+  if (t < bar(4) + 1.6) {
+    const radius = 420 - 300 * easeIn(span(t, bar(2), bar(4) - B));
+    const spin = t * 0.25 + 1.6 * easeIn(span(t, bar(2), bar(4))) * 3;
+    const snap = easeOut(span(t, bar(4) - B, bar(4) - B / 2));
+    for (const p of P) {
+      let px, py;
+      if (t < bar(4)) {
+        const a = p.a * p.sp + spin;
+        const r = radius * p.r * (1 + kE * 0.12);
+        const rx = CX + Math.cos(a) * r, ry = CY - 40 + Math.sin(a) * r * 0.34;
+        px = rx + (p.tgt[0] - rx) * snap;
+        py = ry + (p.tgt[1] - ry) * snap;
+        p.x = px; p.y = py;
+        p.vx = (px - CX) * (0.01 + rnd() * 0.05) + (rnd() - 0.5) * 18;
+        p.vy = (py - CY) * (0.01 + rnd() * 0.05) + (rnd() - 0.5) * 18;
+      } else {
+        const k = t - bar(4);
+        px = p.x + p.vx * k * 30 * Math.exp(-k * 1.2);
+        py = p.y + p.vy * k * 30 * Math.exp(-k * 1.2);
+      }
+      const fade = t < bar(4) ? (gapBuild ? 0.25 : 1) : Math.max(0, 1 - (t - bar(4)) / 1.6);
+      x.fillStyle = `rgba(255,255,255,${p.b * fade * (t < bar(2) ? 0.55 + kE * 0.45 : 0.9)})`;
+      x.fillRect(px, py, 2.2, 2.2);
+    }
+  }
+  // dim orbit behind the logos later on
+  if (t >= bar(6)) {
+    const a0 = t * 0.35, k = t >= bar(9) ? 1 : 0.6;
+    for (let i = 0; i < 900; i++) {
+      const p = P[i], a = p.a + a0 * p.sp;
+      x.fillStyle = `rgba(255,255,255,${0.12 * p.b * k * (t >= bar(8) && t < bar(9) ? 0.3 : 1)})`;
+      x.fillRect(CX + Math.cos(a) * 760 * p.r, CY + Math.sin(a) * 250 * p.r, 1.8, 1.8);
+    }
+  }
+
+  // ---------- 0–2 bars: intro ----------
+  if (t < bar(2)) {
+    const msg = 'SOMETHING IS FORMING';
+    const n = Math.floor(span(t, 0.4, 2.2) * msg.length);
+    text(msg.slice(0, n) + (n < msg.length && Math.floor(t * 4) % 2 ? '▌' : ''), CX, CY + 300, { size: 26, weight: 600, font: 'Geist Mono', spacing: 10, color: '#a3a3a3' });
+  }
+  // ---------- 2–4: build, a word per beat, strobe at the end ----------
+  if (t >= bar(2) && t < bar(4) - B / 2) {
+    const i = Math.floor((t - bar(2)) / B);
+    if (i < BUILD.length) {
+      const k = (t - bar(2) - i * B) / B;
+      text(BUILD[i], CX, CY + 300, { size: 150, weight: 900, scale: 1 + 0.25 * Math.exp(-k * 9), alpha: 1 - k * 0.3 });
+    }
+    if (t > bar(3.5) && Math.floor((t - bar(3.5)) / (B / 4)) % 2 === 0) (x.fillStyle = 'rgba(255,255,255,0.10)'), x.fillRect(0, 0, W, H);
+  }
+
+  // ---------- 4–6: Æ drop ----------
+  const aeX = t < bar(6) ? CX : t < bar(9) ? CX + (600 - CX) * easeOut(span(t, bar(6), bar(6) + B)) : 560;
+  const ponsX = 1340;
+  if (t >= bar(4) && t < bar(8)) {
+    const s = 360 * (1 + kE * 0.04);
+    drawAE(aeX, CY - 40, s, 1, 30 + kE * 50 + iE * 120);
+    if (t < bar(6)) {
+      text('AEON NETWORK', CX, CY + 230, { size: 34, weight: 700, font: 'Geist Mono', spacing: 22, alpha: span(t, bar(4) + 0.1, bar(4) + 0.5) });
+      text('THE LIVE HUB FOR ROBINHOOD CHAIN', CX, CY + 290, { size: 22, weight: 600, font: 'Geist Mono', spacing: 8, color: '#8a8a8a', alpha: span(t, bar(5), bar(5) + 0.4) });
+    }
+  }
+  // ---------- 6–8: Pons arrives ----------
+  if (t >= bar(6) && t < bar(8)) {
+    const k = span(t, bar(6), bar(6) + B * 1.5);
+    drawPons(ponsX, CY - 40, 400 * back(k) * (1 + kE * 0.04), clamp(k * 3), span(t, bar(6) + B, bar(6) + 3 * B), kE * 40);
+    cross(CX + 20, CY - 40, 70 * (1 + kE * 0.15), span(t, bar(6) + B / 2, bar(6) + B));
+    text('AEON', aeX, CY + 230, { size: 30, weight: 700, font: 'Geist Mono', spacing: 18, alpha: span(t, bar(6) + B, bar(6) + 2 * B) });
+    text('PONS', ponsX, CY + 230, { size: 30, weight: 700, font: 'Geist Mono', spacing: 18, alpha: span(t, bar(6) + B, bar(6) + 2 * B) });
+  }
+  // ---------- 8: breakdown ----------
+  if (t >= bar(8) && t < bar(9)) {
+    const z = 1 + span(t, bar(8), bar(9)) * 0.08;
+    drawAE(600, CY - 40, 360 * z, 0.14);
+    drawPons(ponsX, CY - 40, 400 * z, 0.14);
+    const msg = 'AEON × PONS';
+    const n = Math.min(msg.length, Math.floor(Math.max(0, t - bar(8) - B / 2) / (B / 4)) + 1);
+    if (t < bar(9) - B / 2) text(msg.slice(0, n), CX, CY - 20, { size: 170, weight: 900, spacing: -4 });
+  }
+  // ---------- 9–12: drop 2, side by side ----------
+  if (t >= bar(9) && t < bar(12)) {
+    const s = 1.12 * (1 + kE * 0.05);
+    drawAE(560, CY - 70, 380 * s, 1, 30 + kE * 60 + iE * 140);
+    const sweep = ((t - bar(9)) % BAR) / BAR;
+    drawPons(1360, CY - 70, 420 * s, 1, sweep < 0.4 ? sweep / 0.4 : -1, 20 + kE * 50);
+    cross(CX, CY - 70, 80 * (1 + kE * 0.2), 1);
+    const i = Math.floor((t - bar(9)) / (2 * B)) % DROP2.length;
+    const k = ((t - bar(9)) % (2 * B)) / (2 * B);
+    text(DROP2[i], CX, CY + 300, { size: 92, weight: 900, scale: 1 + 0.18 * Math.exp(-k * 10) });
+    // light beam across the frame at every bar
+    const bk = ((t - bar(9)) % BAR) / 0.5;
+    if (bk < 1) {
+      const bx = -400 + bk * (W + 800);
+      const g = x.createLinearGradient(bx - 240, 0, bx + 240, 0);
+      g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,0.10)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+    }
+  }
+  // ---------- 12: end card ----------
+  if (t >= bar(12)) {
+    const k = easeOut(span(t, bar(12), bar(12) + 0.6));
+    drawAE(700, CY - 110, 240, 1, 20 + iE * 120);
+    cross(CX, CY - 110, 54, 1);
+    drawPons(1220, CY - 110, 264, 1, span(t, bar(12) + 0.2, bar(12) + 1.0));
+    text('AEON × PONS', CX, CY + 130, { size: 110, weight: 900, alpha: k, spacing: -2 });
+    text('getaeon.network', CX, CY + 250, { size: 30, weight: 600, font: 'Geist Mono', spacing: 4, color: '#a3a3a3', alpha: span(t, bar(12) + 0.5, bar(12) + 1) });
+  }
+
+  // ---------- overlays ----------
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  const flash = Math.max(iE * 0.85, inDrop ? cE * 0.1 : 0, gapBuild ? 0 : 0);
+  if (flash > 0.01) (x.fillStyle = `rgba(255,255,255,${flash})`), x.fillRect(0, 0, W, H);
+  // pre-drop silence: hard black
+  if (gapBuild || (t >= bar(9) - B / 2 && t < bar(9))) (x.fillStyle = 'rgba(0,0,0,0.92)'), x.fillRect(0, 0, W, H);
+  // vignette
+  const v = x.createRadialGradient(CX, CY, H * 0.35, CX, CY, H * 0.95);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.75)');
+  x.fillStyle = v; x.fillRect(0, 0, W, H);
+  // corner ticks
+  x.strokeStyle = '#fff'; x.lineWidth = 3;
+  x.beginPath(); x.moveTo(36, 62); x.lineTo(36, 36); x.lineTo(62, 36); x.stroke();
+  x.beginPath(); x.moveTo(W - 36, H - 62); x.lineTo(W - 36, H - 36); x.lineTo(W - 62, H - 36); x.stroke();
+  // fade out
+  const out = span(t, bar(12) + 1.5, bar(12) + 1.95);
+  if (out > 0) (x.fillStyle = `rgba(0,0,0,${out})`), x.fillRect(0, 0, W, H);
+};
+// Canvas text only triggers font loading on first use, so load every face up front.
+const fonts = ['500 100px Geist', '700 100px Geist', '800 100px Geist', '900 100px Geist', '500 100px "Geist Mono"', '600 100px "Geist Mono"', '700 100px "Geist Mono"'].map((f) => document.fonts.load(f));
+Promise.all([...fonts, ponsReady]).then(() => document.fonts.ready).then(() => (window.__ready = true));
+</script>
+</body>
+</html>
