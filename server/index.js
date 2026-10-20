@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import compression from 'compression';
@@ -71,11 +72,11 @@ app.use(express.json({ limit: '200kb' }));
 // Security headers. No inline scripts anywhere in the app, so scripts are locked to this origin.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self'",
+  "connect-src 'self' https://cloudflareinsights.com",
   "frame-ancestors 'self'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -497,15 +498,36 @@ async function snapshotHtml() {
   snapshot = { at: Date.now(), html };
   return html;
 }
+// ---------------- versioned assets ----------------
+// The page loads its JS and CSS from /b/<build>/..., where <build> is a fingerprint of every
+// file in public/. A new release gets a new URL, so no browser or CDN cache can ever serve
+// an old app after an update; within one build the files are immutable and cached for a year.
+// Relative imports inside the JS inherit the prefix, so every module is versioned too.
+const PUBLIC = path.join(here, '..', 'public');
+const BUILD = (() => {
+  const h = createHash('sha1');
+  const walk = (dir) => {
+    for (const name of readdirSync(dir).sort()) {
+      const p = path.join(dir, name);
+      const s = statSync(p);
+      if (s.isDirectory()) walk(p);
+      else h.update(`${path.relative(PUBLIC, p)}:${s.size}:${s.mtimeMs}\n`);
+    }
+  };
+  walk(PUBLIC);
+  return h.digest('hex').slice(0, 10);
+})();
+const SHELL = INDEX_HTML.replace('href="/css/style.css"', `href="/b/${BUILD}/css/style.css"`).replace('src="/js/app.js"', `src="/b/${BUILD}/js/app.js"`);
+app.use('/b/:build', express.static(PUBLIC, { immutable: true, maxAge: '365d', index: false }));
+
 const sendShell = async (req, res) => {
   const html = await snapshotHtml().catch(() => '');
-  res.set('cache-control', 'no-cache').type('html').send(INDEX_HTML.replace('<main id="view" tabindex="-1"></main>', () => `<main id="view" tabindex="-1">${html}</main>`));
+  res.set('cache-control', 'no-cache').type('html').send(SHELL.replace('<main id="view" tabindex="-1"></main>', () => `<main id="view" tabindex="-1">${html}</main>`));
 };
 app.get(['/', '/index.html'], sendShell);
 
-// "no-cache" = keep a copy but revalidate (ETag -> 304) on every load. A plain max-age=0 lets
-// Cloudflare's Browser Cache TTL rewrite it to hours, which would hide updates from visitors.
-app.use(express.static(path.join(here, '..', 'public'), { extensions: ['html'], setHeaders: (res) => res.set('cache-control', 'no-cache') }));
+// Unversioned paths (images, manifest, old links) still work: revalidated on every load.
+app.use(express.static(PUBLIC, { extensions: ['html'], index: false, setHeaders: (res) => res.set('cache-control', 'no-cache') }));
 app.get('/{*splat}', sendShell);
 
 // Last-resort error handler: never leak stack traces to visitors.
