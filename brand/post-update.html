@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- "We're back" update image, 1600x900 (16:9). window.SHOT = screenshot of the live What's new page. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255,255,255,0.14); --line-strong: rgba(255,255,255,0.34); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, sans-serif; -webkit-font-smoothing: antialiased; }
+  .frame { position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(60% 80% at 75% 55%, #161616 0%, #050505 60%, #000 100%); }
+  .grid { position: absolute; inset: 0; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 56px 56px; opacity: 0.18; mask-image: radial-gradient(70% 70% at 25% 45%, #000, transparent 80%); }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 20px; height: 20px; border: 0 solid var(--ink); z-index: 3; }
+  .ticks::before { left: 28px; top: 28px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 28px; bottom: 28px; border-bottom-width: 3px; border-right-width: 3px; }
+  .copy { position: absolute; left: 80px; top: 90px; width: 600px; display: grid; gap: 24px; }
+  .brand { display: flex; align-items: center; gap: 11px; font: 600 15px 'Geist Mono', monospace; letter-spacing: 0.2em; }
+  .brand span { color: var(--ink-3); }
+  .brand svg { width: 28px; height: 25px; }
+  .tag { justify-self: start; font: 600 14px 'Geist Mono', monospace; letter-spacing: 0.18em; background: var(--ink); color: #000; padding: 7px 12px; }
+  h1 { margin: 0; font-size: 92px; line-height: 0.92; font-weight: 800; letter-spacing: -0.055em; }
+  h1 span { color: var(--ink-3); }
+  ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 14px; font-size: 22px; color: var(--ink-2); }
+  li { display: flex; gap: 14px; align-items: baseline; }
+  li::before { content: '✓'; color: var(--ink); font-weight: 700; }
+  .url { position: absolute; left: 80px; bottom: 80px; display: flex; gap: 12px; align-items: center; font: 600 20px 'Geist Mono', monospace; }
+  .url b { background: var(--ink); color: #000; padding: 10px 16px; }
+  .url i { font-style: normal; color: var(--ink-3); font-weight: 500; font-size: 16px; }
+  .win { position: absolute; right: 70px; top: 170px; width: 760px; height: 560px; border: 1px solid var(--line-strong); background: #0a0a0a; box-shadow: 0 40px 120px rgba(0,0,0,0.9); overflow: hidden; }
+  .bar { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--line); background: #111; }
+  .bar i { width: 10px; height: 10px; border: 1px solid rgba(255,255,255,0.35); }
+  .bar .u { flex: 1; margin: 0 60px; height: 22px; background: #1a1a1a; display: grid; place-items: center; font: 500 13px 'Geist Mono', monospace; color: var(--ink-2); }
+  .win img { display: block; width: 100%; }
+  .win::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 140px; background: linear-gradient(180deg, rgba(10,10,10,0), #0a0a0a); }
+</style>
+</head>
+<body>
+<div class="frame ticks">
+  <div class="grid"></div>
+  <div class="copy">
+    <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
+    <div class="tag">UPDATE · LIVE NOW</div>
+    <h1>We're back.<br /><span>And better.</span></h1>
+    <ul>
+      <li>A new What's new page</li>
+      <li>Phishing tokens flagged, never shown</li>
+      <li>Steadier AI with three fallbacks</li>
+      <li>Official CA on every page</li>
+    </ul>
+  </div>
+  <div class="url"><b>getaeon.network</b><i>→ What's new</i></div>
+  <div class="win"><div class="bar"><i></i><i></i><i></i><div class="u">🔒 getaeon.network/#/changelog</div></div><img id="shot" /></div>
+</div>
+<script>
+  const img = document.getElementById('shot');
+  img.onload = () => (window.__ready = true);
+  img.src = window.SHOT;
+</script>
+</body>
+</html>
