@@ -1,0 +1,105 @@
+<!doctype html>
+<!-- "Big update in progress" images, 1600x900. ?v=code (editor with real Aeon source) or ?v=term
+     (terminal with real test output). window.CODE / window.TERM are injected by the renderer. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255,255,255,0.14); --line-strong: rgba(255,255,255,0.34); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, sans-serif; -webkit-font-smoothing: antialiased; }
+  .frame { position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(70% 80% at 60% 55%, #151515 0%, #050505 60%, #000 100%); }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 20px; height: 20px; border: 0 solid var(--ink); z-index: 5; }
+  .ticks::before { left: 28px; top: 28px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 28px; bottom: 28px; border-bottom-width: 3px; border-right-width: 3px; }
+  .top { position: absolute; left: 70px; right: 70px; top: 58px; display: flex; justify-content: space-between; align-items: center; font: 600 15px 'Geist Mono', monospace; letter-spacing: 0.2em; z-index: 3; }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand span { color: var(--ink-3); }
+  .brand svg { width: 28px; height: 25px; }
+  .live { display: flex; align-items: center; gap: 10px; background: var(--ink); color: #000; padding: 7px 12px; }
+  .live i { width: 9px; height: 9px; background: #000; animation: none; }
+  h1 { position: absolute; left: 70px; bottom: 120px; margin: 0; font-size: 84px; line-height: 0.93; font-weight: 800; letter-spacing: -0.055em; z-index: 3; text-shadow: 0 10px 40px #000; }
+  h1 span { color: var(--ink-3); }
+  .sub { position: absolute; left: 70px; bottom: 70px; font: 500 18px 'Geist Mono', monospace; color: var(--ink-2); letter-spacing: 0.04em; z-index: 3; }
+  .progress { position: absolute; right: 70px; bottom: 76px; width: 520px; z-index: 3; }
+  .progress .row { display: flex; justify-content: space-between; font: 600 14px 'Geist Mono', monospace; letter-spacing: 0.14em; color: var(--ink-2); margin-bottom: 10px; }
+  .progress .row b { color: var(--ink); }
+  .progress .bar { height: 10px; border: 1px solid var(--line-strong); padding: 1px; }
+  .progress .bar i { display: block; height: 100%; background: repeating-linear-gradient(90deg, var(--ink) 0 14px, transparent 14px 18px); }
+
+  /* window */
+  .win { position: absolute; left: 70px; right: 70px; top: 110px; height: 500px; border: 1px solid var(--line-strong); background: #080808; box-shadow: 0 40px 120px rgba(0,0,0,0.9); overflow: hidden; }
+  .win::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 200px; background: linear-gradient(180deg, rgba(8,8,8,0), #050505 92%); }
+  .bar0 { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--line); background: #101010; font: 500 13px 'Geist Mono', monospace; color: var(--ink-2); }
+  .bar0 i { width: 10px; height: 10px; border: 1px solid rgba(255,255,255,0.35); }
+  .tabs { display: flex; margin-left: 18px; }
+  .tabs span { padding: 0 16px; height: 40px; display: flex; align-items: center; border-right: 1px solid var(--line); }
+  .tabs span.on { color: var(--ink); background: #080808; }
+  .bar0 .right { margin-left: auto; color: var(--ink-3); }
+  pre { margin: 0; padding: 18px 0; font: 400 17px/1.62 'Geist Mono', monospace; color: #cfcfcf; counter-reset: ln; }
+  pre .l { display: block; padding: 0 24px 0 0; white-space: pre; }
+  pre .l::before { counter-increment: ln; content: counter(ln, decimal); display: inline-block; width: 64px; padding-right: 22px; text-align: right; color: #444; }
+  pre .l.cur { background: rgba(255,255,255,0.05); }
+  .k { color: #fff; font-weight: 600; }
+  .s { color: #9a9a9a; }
+  .c { color: #5c5c5c; font-style: italic; }
+  .n { color: #e6e6e6; }
+  .cursor { display: inline-block; width: 10px; height: 20px; background: #fff; vertical-align: -3px; margin-left: 2px; }
+  .term pre .l::before { content: none; }
+  .term pre { padding: 18px 26px; }
+  .ok { color: #fff; }
+  .dim { color: #6b6b6b; }
+</style>
+</head>
+<body>
+<div class="frame ticks">
+  <div class="top">
+    <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
+    <div class="live"><i></i>BUILDING · BIG UPDATE</div>
+  </div>
+  <div class="win" id="win"></div>
+  <h1 id="h1"></h1>
+  <div class="sub" id="sub"></div>
+  <div class="progress"><div class="row"><span id="step"></span><b id="pct"></b></div><div class="bar"><i id="fill"></i></div></div>
+</div>
+<script>
+  const v = new URLSearchParams(location.search).get('v') || 'code';
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+  // Minimal monochrome highlighter: comments, strings, keywords.
+  const hl = (line) => {
+    const m = line.match(/^(.*?)(\/\/.*)$/);
+    let code = m ? m[1] : line, com = m ? m[2] : '';
+    code = esc(code)
+      .replace(/(`[^`]*`|'[^']*')/g, '<span class="s">$1</span>')
+      .replace(/\b(export|async|function|const|let|await|return|if|for|of|new|null|true|false)\b/g, '<span class="k">$1</span>');
+    return code + (com ? `<span class="c">${esc(com)}</span>` : '');
+  };
+  const win = document.getElementById('win');
+  if (v === 'code') {
+    const lines = window.CODE.split('\n');
+    const cur = lines.length - 4;
+    win.innerHTML = `<div class="bar0"><i></i><i></i><i></i><div class="tabs"><span class="on">insights.js</span><span>portfolio.js</span><span>index.js</span></div><span class="right">server/services · main</span></div>
+      <pre>${lines.map((l, i) => `<span class="l${i === cur ? ' cur' : ''}">${hl(l)}${i === cur ? '<span class="cursor"></span>' : ''}</span>`).join('')}</pre>`;
+    document.getElementById('h1').innerHTML = 'Big update.<br /><span>Being built.</span>';
+    document.getElementById('sub').textContent = 'Real code, shipping soon on getaeon.network';
+    document.getElementById('step').textContent = 'WRITING CODE';
+    document.getElementById('pct').textContent = '62%';
+    document.getElementById('fill').style.width = '62%';
+  } else {
+    const t = window.TERM.split('\n').filter(Boolean);
+    win.classList.add('term');
+    win.innerHTML = `<div class="bar0"><i></i><i></i><i></i><div class="tabs"><span class="on">terminal</span><span>build</span></div><span class="right">aeon · main</span></div>
+      <pre><span class="l"><span class="dim">~/aeon $</span> <span class="ok">npm test</span></span><span class="l"></span>${t
+        .map((l) => `<span class="l">${esc(l).replace(/^(\s*ok)/, '<span class="ok">$1</span>').replace(/(\d+ ms)$/, '<span class="dim">$1</span>')}</span>`)
+        .join('')}<span class="l"><span class="dim">  running 32 more checks…</span><span class="cursor"></span></span></pre>`;
+    document.getElementById('h1').innerHTML = 'Testing every<br /><span>piece first.</span>';
+    document.getElementById('sub').textContent = 'Nothing ships until every check passes';
+    document.getElementById('step').textContent = 'TESTING';
+    document.getElementById('pct').textContent = '84%';
+    document.getElementById('fill').style.width = '84%';
+  }
+  document.fonts.ready.then(() => (window.__ready = true));
+</script>
+</body>
+</html>
