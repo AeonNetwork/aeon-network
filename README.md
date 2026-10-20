@@ -71,16 +71,17 @@ BASE=https://getaeon.network npm test     # checks a live deployment
 
 ## Deploy to getaeon.network
 
-Any VPS with Node 22+ behind Caddy or Nginx (TLS). The server sets a Content-Security-Policy and, over HTTPS, HSTS.
+Production runs on an Ubuntu 24.04 VPS: Caddy (automatic HTTPS) in front of one Node process managed by systemd. Everything lives in [`deploy/`](deploy/).
+
+1. DNS (Cloudflare): `A  getaeon.network → SERVER_IP` and `CNAME  www → getaeon.network`, both **DNS only** (grey cloud) so Caddy can issue the certificate.
+2. From the project root on your machine:
 
 ```bash
-npm ci --omit=dev
-cp .env.example .env          # then fill in fresh API keys
-npm test
-npm i -g pm2
-pm2 start ecosystem.config.cjs && pm2 save && pm2 startup   # auto-restart on crash and reboot
+deploy/deploy.sh root@SERVER_IP --setup --env   # first time: install Node, Caddy, firewall; upload .env; deploy
+deploy/deploy.sh root@SERVER_IP                 # every later release (deploys the last commit)
+BASE=https://getaeon.network npm test           # verify the live site
 ```
 
-Run a single instance (the indexer and live stream keep state in memory). In the reverse proxy, disable buffering for `/api/stream` and `/api/ai/chat` so live updates and AI streaming flow, and forward `X-Forwarded-Proto` so HSTS and share links use https.
+Each release is unpacked into its own folder and only switched live after it passes a health check; a failed release rolls back automatically. Run a single instance: the indexer and live stream keep state in memory. Logs: `journalctl -u aeon -f`. ([`ecosystem.config.cjs`](ecosystem.config.cjs) is an alternative for hosts that use PM2.)
 
 > Not financial advice. Network figures come from Aeon's indexer and cover only the window it reports.

@@ -1,0 +1,28 @@
+[Unit]
+Description=Aeon Network (getaeon.network)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aeon
+Group=aeon
+WorkingDirectory=/opt/aeon/current
+Environment=NODE_ENV=production
+Environment=CACHE_DIR=/opt/aeon/shared/cache
+ExecStart=/usr/bin/node --env-file=/opt/aeon/shared/.env server/index.js
+Restart=always
+RestartSec=2
+# SIGTERM lets the server flush its cache to disk before exiting.
+KillSignal=SIGTERM
+TimeoutStopSec=10
+
+# Hardening: the app can only write its cache.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/aeon/shared
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+# Caddy terminates TLS (automatic Let's Encrypt certificates) and proxies to Node.
+getaeon.network {
+	reverse_proxy 127.0.0.1:3000 {
+		# Stream live blocks (/api/stream) and AI answers without buffering.
+		flush_interval -1
+	}
+	log {
+		output file /var/log/caddy/aeon.log {
+			roll_size 20mb
+			roll_keep 5
+		}
+	}
+}
+
+www.getaeon.network {
+	redir https://getaeon.network{uri} permanent
+}
