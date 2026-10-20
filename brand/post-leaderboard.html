@@ -1,0 +1,74 @@
+<!doctype html>
+<!-- "Update 2 is live: Leaderboard" post image, 1600x900. window.DATA = .cache/leaderboard.json. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255,255,255,0.14); --line-strong: rgba(255,255,255,0.34); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, sans-serif; -webkit-font-smoothing: antialiased; }
+  .f { position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(60% 70% at 70% 45%, #171717 0%, #050505 60%, #000 100%); }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 20px; height: 20px; border: 0 solid var(--ink); z-index: 5; }
+  .ticks::before { left: 28px; top: 28px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 28px; bottom: 28px; border-bottom-width: 3px; border-right-width: 3px; }
+  .top { position: absolute; left: 70px; right: 70px; top: 60px; display: flex; justify-content: space-between; align-items: center; font: 600 15px 'Geist Mono', monospace; letter-spacing: 0.2em; }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand span { color: var(--ink-3); }
+  .brand svg { width: 28px; height: 25px; }
+  .tag { background: var(--ink); color: #000; padding: 7px 12px; }
+  .copy { position: absolute; left: 70px; top: 150px; width: 560px; display: grid; gap: 22px; }
+  h1 { margin: 0; font-size: 96px; line-height: 0.92; font-weight: 800; letter-spacing: -0.055em; }
+  h1 span { color: var(--ink-3); }
+  .lead { margin: 0; font-size: 23px; line-height: 1.5; color: var(--ink-2); }
+  .stats { position: absolute; left: 70px; bottom: 150px; display: flex; border: 1px solid var(--line-strong); }
+  .stats div { padding: 16px 24px; border-right: 1px solid var(--line); }
+  .stats div:last-child { border-right: 0; }
+  .stats span { display: block; font: 600 12px 'Geist Mono', monospace; letter-spacing: 0.14em; color: var(--ink-3); }
+  .stats b { display: block; margin-top: 8px; font: 500 30px 'Geist Mono', monospace; }
+  .url { position: absolute; left: 70px; bottom: 66px; font: 600 19px 'Geist Mono', monospace; background: var(--ink); color: #000; padding: 9px 15px; }
+  .stamp { position: absolute; right: 70px; bottom: 66px; font: 500 13px 'Geist Mono', monospace; color: var(--ink-3); letter-spacing: 0.1em; }
+  .podium { position: absolute; right: 70px; top: 150px; width: 780px; display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 12px; align-items: end; }
+  .pod { position: relative; border: 1px solid var(--line-strong); background: rgba(6,6,6,0.92); padding: 20px 18px; display: grid; gap: 6px; }
+  .pod.p1 { border-color: var(--ink); box-shadow: 0 0 60px rgba(255,255,255,0.12); padding: 30px 18px; }
+  .pod .k { font: 600 14px 'Geist Mono', monospace; letter-spacing: 0.16em; color: var(--ink-3); }
+  .pod.p1 .k { color: var(--ink); }
+  .pod .a { font: 500 15px 'Geist Mono', monospace; color: var(--ink-2); }
+  .pod .v { font: 500 34px 'Geist Mono', monospace; letter-spacing: -0.02em; }
+  .pod.p1 .v { font-size: 44px; }
+  .pod small { font-size: 13px; color: var(--ink-3); }
+  .rows { position: absolute; right: 70px; top: 470px; width: 780px; border: 1px solid var(--line-strong); background: rgba(6,6,6,0.9); }
+  .r { display: grid; grid-template-columns: 48px 1fr 130px 70px; align-items: center; height: 46px; padding: 0 18px; border-bottom: 1px solid var(--line); font: 500 16px 'Geist Mono', monospace; }
+  .r:last-child { border-bottom: 0; }
+  .r .n { color: var(--ink-3); }
+  .r .v { text-align: right; font-weight: 600; }
+  .r .s { text-align: right; color: var(--ink-3); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="f ticks">
+  <div class="top">
+    <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
+    <div class="tag">UPDATE 2 · LIVE NOW</div>
+  </div>
+  <div class="copy"><h1>Who holds<br /><span>the most.</span></h1><p class="lead">The 50 largest tokenized-stock portfolios on Robinhood Chain, ranked by live value.</p></div>
+  <div class="stats" id="stats"></div>
+  <div class="url">getaeon.network/leaderboard</div>
+  <div class="podium" id="podium"></div>
+  <div class="rows" id="rows"></div>
+  <div class="stamp" id="stamp"></div>
+</div>
+<script>
+  const D = window.DATA;
+  const usd = (n) => (n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n / 1e3).toFixed(1) + 'K' : '$' + Math.round(n));
+  const short = (a) => a.slice(0, 6) + '…' + a.slice(-4);
+  const [a, b, c] = D.rows;
+  const pod = (r, cls) => `<div class="pod ${cls}"><div class="k">#${r.rank}</div><div class="a">${short(r.address)}</div><div class="v">${usd(r.valueUsd)}</div><small>${r.positions} stocks${r.top ? ' · top ' + r.top.symbol : ''}</small></div>`;
+  document.getElementById('podium').innerHTML = pod(b, 'p2') + pod(a, 'p1') + pod(c, 'p3');
+  document.getElementById('rows').innerHTML = D.rows.slice(3, 8).map((r) => `<div class="r"><span class="n">${r.rank}</span><span>${short(r.address)}</span><span class="v">${usd(r.valueUsd)}</span><span class="s">${r.positions} stk</span></div>`).join('');
+  document.getElementById('stats').innerHTML = `<div><span>TOP 50 HOLD</span><b>${usd(D.totalUsd)}</b></div><div><span>WALLETS CHECKED</span><b>${D.wallets.toLocaleString('en-US')}</b></div><div><span>STOCKS</span><b>${D.tokens}</b></div>`;
+  document.getElementById('stamp').textContent = 'REAL DATA · ' + new Date(D.at).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+  document.fonts.ready.then(() => (window.__ready = true));
+</script>
+</body>
+</html>

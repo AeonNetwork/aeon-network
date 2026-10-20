@@ -56,7 +56,7 @@
 <div class="frame ticks">
   <div class="top">
     <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
-    <div class="live"><i></i>BUILDING · BIG UPDATE</div>
+    <div class="live" id="live"><i></i>BUILDING · BIG UPDATE</div>
   </div>
   <div class="win" id="win"></div>
   <h1 id="h1"></h1>
@@ -65,6 +65,8 @@
 </div>
 <script>
   const v = new URLSearchParams(location.search).get('v') || 'code';
+  const C = window.CFG || {};
+  if (C.live) document.getElementById('live').innerHTML = '<i></i>' + C.live;
   const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
   // Minimal monochrome highlighter: comments, strings, keywords.
   const hl = (line) => {
@@ -79,13 +81,13 @@
   if (v === 'code') {
     const lines = window.CODE.split('\n');
     const cur = lines.length - 4;
-    win.innerHTML = `<div class="bar0"><i></i><i></i><i></i><div class="tabs"><span class="on">insights.js</span><span>portfolio.js</span><span>index.js</span></div><span class="right">server/services · main</span></div>
+    win.innerHTML = `<div class="bar0"><i></i><i></i><i></i><div class="tabs">${(C.tabs || ['insights.js', 'portfolio.js', 'index.js']).map((t, i) => `<span class="${i ? '' : 'on'}">${t}</span>`).join('')}</div><span class="right">${C.path || 'server/services · main'}</span></div>
       <pre>${lines.map((l, i) => `<span class="l${i === cur ? ' cur' : ''}">${hl(l)}${i === cur ? '<span class="cursor"></span>' : ''}</span>`).join('')}</pre>`;
-    document.getElementById('h1').innerHTML = 'Big update.<br /><span>Being built.</span>';
-    document.getElementById('sub').textContent = 'Real code, shipping soon on getaeon.network';
+    document.getElementById('h1').innerHTML = C.h1 || 'Big update.<br /><span>Being built.</span>';
+    document.getElementById('sub').textContent = C.sub || 'Real code, shipping soon on getaeon.network';
     document.getElementById('step').textContent = 'WRITING CODE';
-    document.getElementById('pct').textContent = '62%';
-    document.getElementById('fill').style.width = '62%';
+    document.getElementById('pct').textContent = (C.pct || 62) + '%';
+    document.getElementById('fill').style.width = (C.pct || 62) + '%';
   } else {
     const t = window.TERM.split('\n').filter(Boolean);
     win.classList.add('term');
