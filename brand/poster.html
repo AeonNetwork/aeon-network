@@ -19,15 +19,18 @@
   .top svg { width: 30px; height: 27px; }
   .live { color: var(--ink-2); }
   .live::before { content: ''; display: inline-block; width: 9px; height: 9px; background: var(--ink); margin-right: 10px; vertical-align: 1px; }
-  .copy { position: absolute; left: 70px; right: 70px; top: 818px; }
+  .copy { position: absolute; left: 70px; right: 70px; top: 770px; }
+  .ca { position: absolute; left: 70px; right: 70px; bottom: 64px; display: flex; align-items: center; gap: 16px; padding-top: 22px; border-top: 1px solid var(--line-strong); font: 600 19px 'Geist Mono', monospace; }
+  .ca span { flex: none; font-size: 14px; letter-spacing: 0.16em; color: #000; background: var(--ink); padding: 6px 10px; }
+  .ca b { font-weight: 500; letter-spacing: 0.01em; white-space: nowrap; }
   h1 { margin: 0; font-size: 104px; line-height: 0.93; font-weight: 800; letter-spacing: -0.055em; }
   h1 span { color: var(--ink-3); }
-  .stats { position: absolute; left: 70px; right: 70px; top: 1070px; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line-strong); }
+  .stats { position: absolute; left: 70px; right: 70px; top: 1010px; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line-strong); }
   .stats div { padding: 18px 18px 20px; border-right: 1px solid var(--line); }
   .stats div:last-child { border-right: 0; }
   .stats span { display: block; font: 600 12.5px 'Geist Mono', monospace; letter-spacing: 0.14em; color: var(--ink-3); text-transform: uppercase; }
   .stats b { display: block; margin-top: 10px; font: 500 28px 'Geist Mono', monospace; letter-spacing: -0.03em; }
-  .foot { position: absolute; left: 70px; right: 70px; bottom: 70px; display: flex; justify-content: space-between; align-items: center; font: 600 18px 'Geist Mono', monospace; }
+  .foot { position: absolute; left: 70px; right: 70px; bottom: 150px; display: flex; justify-content: space-between; align-items: center; font: 600 18px 'Geist Mono', monospace; }
   .foot b { background: var(--ink); color: #000; padding: 9px 14px; font-weight: 600; }
   .foot i { font-style: normal; color: var(--ink-3); font-weight: 500; font-size: 14px; letter-spacing: 0.06em; }
 </style>
@@ -42,6 +45,7 @@
   <div class="copy"><h1>Every block.<br /><span>As it happens.</span></h1></div>
   <div class="stats" id="stats"></div>
   <div class="foot"><b>getaeon.network</b><i id="stamp"></i></div>
+  <div class="ca" id="ca" hidden><span>CA</span><b id="caAddr"></b></div>
 </div>
 <script>
   const D = window.DATA;
@@ -54,6 +58,7 @@
     ['TVL', '$' + compact(D.tvl)],
   ].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
   document.getElementById('stamp').textContent = `REAL DATA · ${D.capturedAt}`;
+if (D.ca) (document.getElementById('caAddr').textContent = D.ca), (document.getElementById('ca').hidden = false);
 
   const W = 1080, H = 1350, dpr = 2;
   const c = document.getElementById('c');
