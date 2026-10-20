@@ -19,6 +19,13 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
+// One canonical host: www.getaeon.network -> getaeon.network.
+app.use((req, res, next) => {
+  const host = req.get('host') || '';
+  if (host.startsWith('www.')) return res.redirect(301, `${req.protocol}://${host.slice(4)}${req.originalUrl}`);
+  next();
+});
+
 // gzip/brotli for everything except the live event stream (it must flush immediately).
 app.use(compression({ filter: (req, res) => req.path !== '/api/stream' && compression.filter(req, res) }));
 app.use(express.json({ limit: '200kb' }));
