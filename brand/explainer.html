@@ -1,0 +1,174 @@
+<!doctype html>
+<!-- Feature explainer film (1920x1080, 36 s). Real screenshots of the live site inside a
+     browser frame, slow camera moves, captions on the left. The recorder injects window.IMGS
+     ({ home, portfolio, ai } as data URLs) and drives window.render(t). -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+const c = document.getElementById('c'), x = c.getContext('2d');
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const io = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2);
+const out = (k) => 1 - (1 - k) ** 3;
+const lerp = (a, b, k) => a + (b - a) * k;
+let seed = 3;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+// ---------- assets ----------
+const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'].map((d) => new Path2D(d));
+const AE_SPRITE = new OffscreenCanvas(1040, 940);
+{ const g = AE_SPRITE.getContext('2d'); g.scale(5, 5); g.translate(-96, -106); g.fillStyle = '#fff'; AE.forEach((p) => g.fill(p)); }
+function drawAE(cx, cy, h, alpha = 1, bloom = 0) {
+  if (alpha <= 0) return;
+  const w = (208 / 188) * h;
+  x.save();
+  if (bloom > 0) { x.globalAlpha = alpha * bloom; x.shadowColor = '#fff'; x.shadowBlur = 60; x.drawImage(AE_SPRITE, cx - w / 2, cy - h / 2, w, h); x.shadowBlur = 0; }
+  x.globalAlpha = alpha;
+  x.drawImage(AE_SPRITE, cx - w / 2, cy - h / 2, w, h);
+  x.restore();
+}
+const IM = {};
+const loaded = Promise.all(Object.entries(window.IMGS).map(([k, src]) => new Promise((res) => { const i = new Image(); i.onload = () => ((IM[k] = i), res()); i.src = src; })));
+
+function text(str, px, py, { size = 64, weight = 800, font = 'Geist', color = '#fff', alpha = 1, spacing = 0, align = 'left', blur = 0 } = {}) {
+  if (alpha <= 0) return;
+  x.save();
+  x.globalAlpha = alpha;
+  x.font = `${weight} ${size}px "${font}"`;
+  x.letterSpacing = spacing + 'px';
+  x.textAlign = align;
+  x.textBaseline = 'alphabetic';
+  x.fillStyle = color;
+  if (blur > 0.3) x.filter = `blur(${blur}px)`;
+  x.fillText(str, px, py);
+  x.restore();
+}
+// A line that settles in (rises, unblurs, fades in) at t0 and fades out at t1.
+function line(str, px, py, t, t0, t1, opts = {}) {
+  const k = out(span(t, t0, t0 + 0.9));
+  const a = k * (1 - span(t, t1 - 0.45, t1));
+  text(str, px, py + (1 - k) * 18, { ...opts, alpha: a, blur: (1 - k) * 10 });
+}
+
+// Browser window with a screenshot inside: a slow camera over the page.
+const FX = 790, FY = 190, FW = 1010, FH = 700, BAR = 44;
+function browser(img, url, t, t0, t1, cam) {
+  const k = out(span(t, t0, t0 + 1));
+  const a = k * (1 - span(t, t1 - 0.5, t1));
+  if (a <= 0 || !img) return;
+  const lift = (1 - k) * 40;
+  x.save();
+  x.globalAlpha = a;
+  x.translate(0, lift);
+  // shadow + frame
+  x.shadowColor = 'rgba(0,0,0,0.9)'; x.shadowBlur = 80; x.shadowOffsetY = 30;
+  x.fillStyle = '#0b0b0b'; x.fillRect(FX, FY, FW, FH);
+  x.shadowColor = 'transparent';
+  x.strokeStyle = 'rgba(255,255,255,0.28)'; x.lineWidth = 1.5; x.strokeRect(FX + 0.5, FY + 0.5, FW - 1, FH - 1);
+  // title bar
+  x.fillStyle = '#111'; x.fillRect(FX + 1, FY + 1, FW - 2, BAR);
+  x.strokeStyle = 'rgba(255,255,255,0.14)'; x.beginPath(); x.moveTo(FX, FY + BAR); x.lineTo(FX + FW, FY + BAR); x.stroke();
+  for (let i = 0; i < 3; i++) { x.strokeStyle = 'rgba(255,255,255,0.35)'; x.strokeRect(FX + 18 + i * 20, FY + 17, 10, 10); }
+  x.fillStyle = '#1a1a1a'; x.fillRect(FX + 120, FY + 10, FW - 240, BAR - 20);
+  text('🔒 ' + url, FX + FW / 2, FY + 29, { size: 15, weight: 500, font: 'Geist Mono', color: '#a3a3a3', align: 'center' });
+  // page viewport with camera move
+  const vx = FX + 1, vy = FY + BAR + 1, vw = FW - 2, vh = FH - BAR - 2;
+  const p = io(span(t, t0 + 0.6, t1 - 0.4));
+  const zoom = lerp(cam.z0, cam.z1, p);
+  const sw = img.width / zoom, sh = sw * (vh / vw);
+  const sx = lerp(cam.x0, cam.x1, p) * (img.width - sw);
+  const sy = Math.min(img.height - sh, lerp(cam.y0, cam.y1, p));
+  x.beginPath(); x.rect(vx, vy, vw, vh); x.clip();
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(img, sx, sy, sw, sh, vx, vy, vw, vh);
+  x.restore();
+}
+function caption(n, kicker, title1, title2, body, t, t0, t1) {
+  const X0 = 120;
+  line(n + '  ·  ' + kicker.toUpperCase(), X0, 330, t, t0 + 0.2, t1, { size: 22, weight: 600, font: 'Geist Mono', spacing: 4, color: '#8a8a8a' });
+  line(title1, X0, 430, t, t0 + 0.4, t1, { size: 76, weight: 800, spacing: -2.5 });
+  line(title2, X0, 512, t, t0 + 0.55, t1, { size: 76, weight: 800, spacing: -2.5, color: '#6b6b6b' });
+  body.forEach((b, i) => line(b, X0, 600 + i * 42, t, t0 + 0.9 + i * 0.15, t1, { size: 27, weight: 500, color: '#b5b5b5' }));
+}
+
+// faint drifting particles for depth
+const P = Array.from({ length: 260 }, () => ({ x: rnd() * W, y: rnd() * H, s: 0.2 + rnd() * 0.8, b: 0.15 + rnd() * 0.45 }));
+
+window.render = (t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.globalAlpha = 1; x.filter = 'none';
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  // background: slow particles + soft light behind the frame
+  for (const p of P) {
+    x.fillStyle = `rgba(255,255,255,${p.b * 0.5})`;
+    x.fillRect((p.x + t * 12 * p.s) % W, p.y, 1.6, 1.6);
+  }
+  const glow = x.createRadialGradient(1300, 540, 0, 1300, 540, 760);
+  glow.addColorStop(0, 'rgba(255,255,255,0.06)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = glow; x.fillRect(0, 0, W, H);
+
+  // ---- 0–4: title ----
+  if (t < 4.2) {
+    const k = out(span(t, 0.3, 1.6)), f = 1 - span(t, 3.5, 4.1);
+    drawAE(CX, CY - 90, 180 * lerp(1.08, 1, k), k * f, 0.6 * (1 - k));
+    line('Meet Aeon Network', CX, CY + 90, t, 0.9, 4.1, { size: 84, weight: 800, spacing: -3, align: 'center' });
+    line('THE LIVE HUB FOR ROBINHOOD CHAIN', CX, CY + 150, t, 1.4, 4.1, { size: 22, weight: 600, font: 'Geist Mono', spacing: 8, color: '#9a9a9a', align: 'center' });
+  }
+  // ---- 4–11: live network ----
+  if (t >= 4 && t < 11.2) {
+    caption('01', 'Live network', 'Every block.', 'As it happens.', ['Blocks, transactions, fees and totals,', 'streamed live from Robinhood Chain.', 'Every number links to its source.'], t, 4, 11.2);
+    browser(IM.home, 'getaeon.network', t, 4.2, 11.2, { z0: 1, z1: 1.08, x0: 0.5, x1: 0.2, y0: 0, y1: 1700 });
+  }
+  // ---- 11–18: portfolio ----
+  if (t >= 11 && t < 18.2) {
+    caption('02', 'Portfolio', 'Your stocks,', 'on-chain.', ["Any wallet, valued like a broker app:", "today's gain or loss, 7-day history,", 'every buy and sell. Fakes flagged.'], t, 11, 18.2);
+    browser(IM.portfolio, 'getaeon.network/#/portfolio', t, 11.2, 18.2, { z0: 1, z1: 1.1, x0: 0.5, x1: 0.35, y0: 0, y1: 1900 });
+  }
+  // ---- 18–25: AI ----
+  if (t >= 18 && t < 25.2) {
+    caption('03', 'Network AI', 'Ask the', 'chain.', ['The AI reads blocks, wallets and tokens', 'before it answers. Here it verifies an', 'official stock token, live.'], t, 18, 25.2);
+    browser(IM.ai, 'getaeon.network/#/ai', t, 18.2, 25.2, { z0: 1, z1: 1.35, x0: 0.5, x1: 0.93, y0: 0, y1: 300 });
+  }
+  // ---- 25–31: trust ----
+  if (t >= 25 && t < 31.2) {
+    line('04  ·  BUILT TO BE TRUSTED', 120, 250, t, 25.2, 31.2, { size: 22, weight: 600, font: 'Geist Mono', spacing: 6, color: '#8a8a8a' });
+    line('Real data. Nothing mocked.', 120, 345, t, 25.4, 31.2, { size: 76, weight: 800, spacing: -2.5 });
+    const cards = [['Open source', 'github.com/AeonNetwork'], ['No sign-up', 'Look around without a wallet'], ['Read-only', 'Aeon never asks for your keys'], ['Public RPC', 'Free for anyone to build on']];
+    cards.forEach(([h, s], i) => {
+      const k = out(span(t, 26 + i * 0.25, 26.9 + i * 0.25)), a = k * (1 - span(t, 30.7, 31.2));
+      if (a <= 0) return;
+      const cx0 = 120 + (i % 2) * 850, cy0 = 430 + Math.floor(i / 2) * 210 + (1 - k) * 24;
+      x.save(); x.globalAlpha = a;
+      x.strokeStyle = 'rgba(255,255,255,0.22)'; x.lineWidth = 1.5; x.strokeRect(cx0, cy0, 820, 180);
+      x.strokeStyle = '#fff'; x.lineWidth = 3;
+      x.beginPath(); x.moveTo(cx0, cy0 + 22); x.lineTo(cx0, cy0); x.lineTo(cx0 + 22, cy0); x.stroke();
+      x.beginPath(); x.moveTo(cx0 + 820, cy0 + 158); x.lineTo(cx0 + 820, cy0 + 180); x.lineTo(cx0 + 798, cy0 + 180); x.stroke();
+      x.restore();
+      text(h, cx0 + 40, cy0 + 82, { size: 48, weight: 800, spacing: -1.5, alpha: a });
+      text(s, cx0 + 40, cy0 + 132, { size: 26, weight: 500, color: '#a3a3a3', alpha: a });
+    });
+  }
+  // ---- 31–36: end ----
+  if (t >= 31) {
+    const k = out(span(t, 31.2, 32.4)), f = 1 - span(t, 35.3, 36);
+    drawAE(CX, CY - 120, 150, k * f, 0.5 * (1 - k));
+    line('getaeon.network', CX, CY + 40, t, 31.6, 36, { size: 64, weight: 800, spacing: -2, align: 'center' });
+    line('@getaeon_network', CX, CY + 105, t, 32.0, 36, { size: 26, weight: 500, font: 'Geist Mono', spacing: 3, color: '#9a9a9a', align: 'center' });
+  }
+  // vignette + letterbox
+  const v = x.createRadialGradient(CX, CY, H * 0.35, CX, CY, H * 0.95);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.65)');
+  x.fillStyle = v; x.fillRect(0, 0, W, H);
+};
+const fonts = ['500 100px Geist', '700 100px Geist', '800 100px Geist', '500 100px "Geist Mono"', '600 100px "Geist Mono"'].map((f) => document.fonts.load(f));
+Promise.all([...fonts, loaded]).then(() => document.fonts.ready).then(() => (window.__ready = true));
+</script>
+</body>
+</html>
