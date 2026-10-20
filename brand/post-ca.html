@@ -1,0 +1,85 @@
+<!doctype html>
+<!-- Announcement: the official contract address now lives on getaeon.network. 1600x900 (16:9).
+     window.SHOT = screenshot (2880x1800, DPR 2) of the live site scrolled to the footer;
+     window.CA = the address; window.ROW = the CA row's box in the screenshot (device px). -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255,255,255,0.14); --line-strong: rgba(255,255,255,0.34); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, sans-serif; -webkit-font-smoothing: antialiased; }
+  .frame { position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(60% 70% at 50% 60%, #151515 0%, #050505 60%, #000 100%); }
+  .grid { position: absolute; inset: 0; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 56px 56px; opacity: 0.18; mask-image: radial-gradient(70% 70% at 50% 40%, #000, transparent 80%); }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 20px; height: 20px; border: 0 solid var(--ink); z-index: 3; }
+  .ticks::before { left: 28px; top: 28px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 28px; bottom: 28px; border-bottom-width: 3px; border-right-width: 3px; }
+  .top { position: absolute; left: 70px; right: 70px; top: 62px; display: flex; justify-content: space-between; align-items: center; font: 600 15px 'Geist Mono', monospace; letter-spacing: 0.2em; }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand span { color: var(--ink-3); }
+  .brand svg { width: 28px; height: 25px; }
+  .tag { background: var(--ink); color: #000; padding: 7px 12px; letter-spacing: 0.18em; }
+  h1 { position: absolute; left: 70px; top: 118px; margin: 0; font-size: 70px; line-height: 0.98; font-weight: 800; letter-spacing: -0.05em; }
+  h1 span { color: var(--ink-3); }
+  .win { position: absolute; left: 70px; right: 70px; top: 300px; border: 1px solid var(--line-strong); background: #0a0a0a; box-shadow: 0 30px 90px rgba(0,0,0,0.9); }
+  .bar { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--line); background: #111; }
+  .bar i { width: 10px; height: 10px; border: 1px solid rgba(255,255,255,0.35); }
+  .bar .url { flex: 1; margin: 0 90px; height: 22px; background: #1a1a1a; display: grid; place-items: center; font: 500 13px 'Geist Mono', monospace; color: var(--ink-2); }
+  .shot { position: relative; height: 213px; overflow: hidden; }
+  .shot canvas { display: block; }
+  .hl { position: absolute; border: 2px solid var(--ink); box-shadow: 0 0 0 4px rgba(255,255,255,0.12), 0 0 40px rgba(255,255,255,0.35); }
+  .hl::after { content: 'BOTTOM OF EVERY PAGE'; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font: 600 12px 'Geist Mono', monospace; letter-spacing: 0.16em; background: var(--ink); color: #000; padding: 5px 9px; }
+  .dim-top { position: absolute; left: 0; right: 0; top: 0; background: rgba(0,0,0,0.55); }
+  .ca { position: absolute; left: 70px; right: 70px; top: 615px; display: flex; align-items: center; gap: 20px; border: 1px solid var(--line-strong); padding: 22px 26px; background: rgba(0,0,0,0.6); }
+  .ca::before, .ca::after { content: ''; position: absolute; width: 14px; height: 14px; border: 0 solid var(--ink); }
+  .ca::before { left: -1px; top: -1px; border-top-width: 2px; border-left-width: 2px; }
+  .ca::after { right: -1px; bottom: -1px; border-bottom-width: 2px; border-right-width: 2px; }
+  .ca span { flex: none; font: 600 16px 'Geist Mono', monospace; letter-spacing: 0.16em; background: var(--ink); color: #000; padding: 8px 12px; }
+  .ca b { font: 500 33px 'Geist Mono', monospace; letter-spacing: -0.01em; white-space: nowrap; }
+  .foot { position: absolute; left: 70px; right: 70px; bottom: 62px; display: flex; justify-content: space-between; align-items: center; font-size: 21px; color: var(--ink-2); }
+  .foot b { color: var(--ink); font-weight: 700; }
+  .foot .mono { font: 600 17px 'Geist Mono', monospace; color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="frame ticks">
+  <div class="grid"></div>
+  <div class="top">
+    <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
+    <div class="tag">ANNOUNCEMENT</div>
+  </div>
+  <h1>The official CA is now live<br /><span>on getaeon.network.</span></h1>
+  <div class="win">
+    <div class="bar"><i></i><i></i><i></i><div class="url">🔒 getaeon.network</div></div>
+    <div class="shot" id="shot"><canvas id="c"></canvas><div class="dim-top" id="dim"></div><div class="hl" id="hl"></div></div>
+  </div>
+  <div class="ca"><span>CA</span><b id="ca"></b></div>
+  <div class="foot"><div><b>Only trust this address.</b> Copy it from getaeon.network or @getaeon_network.</div><div class="mono">getaeon.network</div></div>
+</div>
+<script>
+  document.getElementById('ca').textContent = window.CA;
+  const img = new Image();
+  img.onload = () => {
+    const viewW = 1458, cropTop = 1380, cropH = 420; // device px of the screenshot
+    const k = viewW / img.width;
+    const c = document.getElementById('c');
+    c.width = viewW * 2; c.height = Math.round(cropH * k) * 2;
+    c.style.width = viewW + 'px'; c.style.height = Math.round(cropH * k) + 'px';
+    const x = c.getContext('2d');
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(img, 0, cropTop, img.width, cropH, 0, 0, c.width, c.height);
+    const R = window.ROW;
+    const hl = document.getElementById('hl');
+    const pad = 8;
+    hl.style.left = R.x * k - pad + 'px';
+    hl.style.top = (R.y - cropTop) * k - pad + 'px';
+    hl.style.width = R.w * k + pad * 2 + 'px';
+    hl.style.height = R.h * k + pad * 2 + 'px';
+    document.getElementById('dim').style.height = Math.max(0, (R.y - cropTop) * k - pad - 2) + 'px';
+    window.__ready = true;
+  };
+  img.src = window.SHOT;
+</script>
+</body>
+</html>
