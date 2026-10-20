@@ -1,0 +1,135 @@
+<!doctype html>
+<!-- X (Twitter) header source, 1500x500. Render with deviceScaleFactor 2 for a crisp upload.
+     Safe areas: the profile photo covers the bottom-left (~x 0-300, y 300-500) and phones
+     crop roughly 60px off the top and bottom, so text sits top-right inside y 70-430. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255, 255, 255, 0.14); --line-strong: rgba(255, 255, 255, 0.34); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .frame { position: relative; width: 1500px; height: 500px; overflow: hidden; background: radial-gradient(70% 120% at 50% 100%, #161616 0%, #050505 55%, #000 100%); }
+  canvas { position: absolute; inset: 0; }
+  .ghost { position: absolute; right: -30px; top: -60px; width: 640px; opacity: 0.045; }
+  .copy { position: absolute; right: 76px; top: 74px; text-align: right; display: grid; justify-items: end; gap: 14px; }
+  .kicker { display: flex; align-items: center; gap: 10px; font: 600 13px 'Geist Mono', monospace; letter-spacing: 0.24em; color: var(--ink-2); }
+  .kicker svg { width: 22px; height: 20px; }
+  .kicker b { color: var(--ink); font-weight: 600; }
+  h1 { margin: 0; font-size: 66px; line-height: 0.95; font-weight: 800; letter-spacing: -0.05em; }
+  h1 span { color: var(--ink-3); }
+  .url { font: 600 14px 'Geist Mono', monospace; letter-spacing: 0.08em; border: 1px solid var(--line-strong); padding: 6px 11px; background: rgba(0, 0, 0, 0.6); }
+  .url i { display: inline-block; width: 7px; height: 7px; background: var(--ink); margin-right: 9px; vertical-align: 1px; font-style: normal; }
+  .label { position: absolute; font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.04em; white-space: nowrap; background: rgba(0, 0, 0, 0.8); border: 1px solid var(--line-strong); padding: 3px 7px; transform: translate(-50%, calc(-100% - 8px)); }
+  .label.dim { color: var(--ink-2); border-color: var(--line); }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 16px; height: 16px; border: 0 solid var(--ink); }
+  .ticks::before { left: 20px; top: 20px; border-top-width: 2px; border-left-width: 2px; }
+  .ticks::after { right: 20px; bottom: 20px; border-bottom-width: 2px; border-right-width: 2px; }
+</style>
+</head>
+<body>
+<div class="frame ticks" id="frame">
+    <canvas id="c"></canvas>
+  <div id="labels"></div>
+  <div class="copy">
+    <div class="kicker">
+      <svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>
+      <b>AEON NETWORK</b> · ROBINHOOD CHAIN
+    </div>
+    <h1>Every block.<br /><span>As it happens.</span></h1>
+    <div class="url"><i></i>getaeon.network</div>
+  </div>
+</div>
+<script>
+  const W = 1500, H = 500, dpr = 2;
+  let seed = 92640118;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const rand = (a, b) => a + rnd() * (b - a);
+  const canvas = document.getElementById('c');
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // A huge, almost edge-on ring: its near arc is a horizon sweeping across the banner.
+  const cx = W * 0.5, cy = 196, R = W * 0.72, tilt = 0.16;
+  const project = (x, y, z) => {
+    const Y = y * Math.cos(tilt) - z * Math.sin(tilt);
+    const Z = y * Math.sin(tilt) + z * Math.cos(tilt);
+    const s = 5 / (5 + Z);
+    return { x: cx + x * R * s, y: cy + Y * R * s, z: Z, s };
+  };
+  const dot = (p, a, size) => {
+    if (p.x < -4 || p.x > W + 4 || p.y < -4 || p.y > H + 4) return;
+    ctx.fillStyle = `rgba(255,255,255,${a})`;
+    ctx.fillRect(p.x, p.y, size * p.s, size * p.s);
+  };
+
+  // Horizon ring. The newest blocks glow on the right.
+  const head = 0.1; // radians from the front of the ring towards the right
+  for (let i = 0; i < 9000; i++) {
+    const a = (i / 9000) * Math.PI * 2;
+    const r = 1 + (rnd() < 0.75 ? rand(-0.012, 0.012) : rand(-0.035, 0.035));
+    const p = project(Math.sin(a) * r, rand(-0.004, 0.004), -Math.cos(a) * r);
+    const near = Math.cos(a) > 0; // front half of the ring
+    const d = Math.abs(a - head);
+    const glow = near && a < head && head - a < 0.35 ? 1 - (head - a) / 0.35 : 0;
+    const depth = Math.max(0, Math.min(1, 0.6 - p.z * 0.5));
+    dot(p, Math.min(1, (near ? 0.18 + depth * 0.55 : 0.08) * rand(0.4, 1) + glow * 0.85), glow > 0.15 ? 1.7 : 1.1);
+  }
+
+  // A skyline of blocks growing out of the near arc, each sized by its transactions.
+  const labels = document.getElementById('labels');
+  const label = (p, text, dim) => {
+    const el = document.createElement('div');
+    el.className = 'label' + (dim ? ' dim' : '');
+    el.textContent = text;
+    labels.append(el);
+    const half = el.offsetWidth / 2 + 30;
+    el.style.left = Math.max(half, Math.min(W - half, p.x)) + 'px';
+    el.style.top = Math.max(el.offsetHeight + 84, p.y) + 'px';
+  };
+  const tree = (a, h, text, dim) => {
+    const base = [Math.sin(a), 0, -Math.cos(a)];
+    const pts = [];
+    const branch = (x, y, z, dx, dy, dz, len, depth) => {
+      const steps = Math.max(6, Math.round(len * 160));
+      for (let s = 0; s < steps; s++) {
+        dx += rand(-0.07, 0.07); dy += rand(-0.03, 0.03); dz += rand(-0.03, 0.03);
+        const n = Math.hypot(dx, dy, dz); dx /= n; dy /= n; dz /= n;
+        x += (dx * len) / steps; y += (dy * len) / steps; z += (dz * len) / steps;
+        for (let k = 0; k < 2; k++) pts.push([x + rand(-0.002, 0.002), y + rand(-0.002, 0.002), z]);
+        if (depth < 2 && rnd() < 0.06 + depth * 0.05) branch(x, y, z, dx + rand(-0.7, 0.7), dy + rand(-0.15, 0.15), dz, len * rand(0.3, 0.55), depth + 1);
+      }
+      for (let k = 0; k < 6 + depth * 3; k++) pts.push([x + rand(-0.012, 0.012), y + rand(-0.012, 0.012), z]);
+    };
+    branch(base[0], 0, base[2], 0, -1, 0, h, 0);
+    let top = null;
+    for (const [x, y, z] of pts) {
+      const p = project(x, y, z);
+      dot(p, 0.22 + rand(0, 0.55), 1.1);
+      if (!top || p.y < top.y) top = p;
+    }
+    if (text) label(top, text, dim);
+  };
+
+  // Keep the profile-photo corner (bottom-left) and the headline (top-right) calm.
+  const forest = [];
+  for (let i = 0; i < 46; i++) {
+    const a = -1.05 + (i / 45) * 2.1 + rand(-0.015, 0.015);
+    const x = cx + Math.sin(a) * R;
+    if (x < 300) continue;
+    let h = 0.03 + Math.pow(rnd(), 2.2) * 0.13;
+    if (x > W * 0.62) h = Math.min(h, 0.06); // under the headline
+    forest.push([a, h]);
+  }
+  for (const [a, h] of forest) tree(a, h);
+  tree(-0.6, 0.19, 'TSLA · official ERC-8056');
+  tree(-0.4, 0.13, 'NVDA · 189,372 holders', true);
+  tree(-0.17, 0.21, 'Network AI · ask the chain');
+  tree(-0.01, 0.12, 'Aeon RPC · open', true);
+  tree(head - 0.02, 0.09, '#92,640,118 · 14 tx');
+</script>
+</body>
+</html>
