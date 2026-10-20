@@ -4,6 +4,18 @@ import { esc } from '../core.js';
 export const RELEASES = [
   {
     date: 'Oct 21, 2026',
+    tag: 'New',
+    title: 'Aeon token: transparency and holder perks',
+    items: [
+      'A token page read live from the chain: supply, holders, burned share and the top 20 holders, labelled',
+      'The creator wallet holds 0 AE; its launch buy was burned, with both transactions linked',
+      'Holders of 1,000,000+ AE get 4x the Network AI allowance and a Holder badge',
+      'Verify by signing a message in your wallet: free, no transaction, nothing can move',
+    ],
+    link: ['#/ae', 'Open the token page'],
+  },
+  {
+    date: 'Oct 21, 2026',
     tag: 'Update 2',
     title: 'Holder leaderboard',
     items: [

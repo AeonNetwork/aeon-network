@@ -1,5 +1,6 @@
 import { state, prefs, net, on, esc, toast, short, $ } from '../core.js';
 import { markdown } from '../markdown.js';
+import { getPass } from './ae.js';
 import { startOrb } from '../orb.js';
 
 const PROMPTS = [
@@ -96,7 +97,7 @@ export function render(main) {
     try {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...(getPass() ? { 'x-aeon-pass': getPass().pass } : {}) },
         body: JSON.stringify({ messages: history.map(({ role, content }) => ({ role, content })), network: state.network }),
         signal: ctrl.signal,
       });

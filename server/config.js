@@ -118,3 +118,22 @@ export const AI = {
 };
 
 export const CACHE_DIR = env.CACHE_DIR || '.cache';
+
+// The Aeon community token (Robinhood Chain mainnet, launched on Pons) and holder perks.
+export const AEON_TOKEN = {
+  network: 'mainnet',
+  address: '0xb4fc414ac279bb3136e3cf7ec5084846af3bb459',
+  launchedOn: 'Pons',
+  // Wallet that launched the token on Pons; its launch buy was sent to 0x…dEaD.
+  creator: '0xa22b97201Dda33bF5946CF991757Af904532d4A1',
+  creatorBuyTx: '0x185257d8d417a49e78f12152842613c0308eec3f9db276f415d164176fe3af33',
+  creatorBurnTx: '0x0d6c18b2022a8c06680e79e2ae8e55161bfdf6a5561641890d2644e420f81f0a',
+  // Any team wallets are disclosed here (comma-separated) and shown on the token page.
+  teamWallets: (env.AEON_TEAM_WALLETS || '').split(',').map((s) => s.trim()).filter(Boolean),
+  // Known contracts among the holders.
+  labels: { '0x8d9948e74653e10ac992f2649cbe873a9517b0b0': 'Pons bonding curve', '0x000000000000000000000000000000000000dead': 'Burn address' },
+  holderMin: Number(env.AEON_HOLDER_MIN || 1_000_000),
+  holderAiMultiplier: 4,
+  // HMAC key for holder passes; set AEON_PASS_SECRET in .env to keep passes valid across restarts.
+  passSecret: env.AEON_PASS_SECRET || '',
+};

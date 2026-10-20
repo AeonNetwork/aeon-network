@@ -43,7 +43,8 @@ export function ipLimiter({ max, windowMs }) {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
     const arr = (hits.get(ip) || []).filter((t) => t > now - windowMs);
-    if (arr.length >= max) {
+    const limit = typeof max === 'function' ? max(req) : max;
+    if (arr.length >= limit) {
       const retry = Math.ceil((arr[0] + windowMs - now) / 1000);
       res.set('Retry-After', String(retry));
       return res.status(429).json({ error: `Usage limit reached. Try again in ${retry} seconds.` });

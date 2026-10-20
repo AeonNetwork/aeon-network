@@ -6,7 +6,7 @@ import express from 'express';
 import compression from 'compression';
 import { installDoh } from './lib/dns.js';
 
-import { PORT, NETWORKS, DEFAULT_NETWORK, AI, INDEXER, BLOCKSCOUT, COINGECKO } from './config.js';
+import { PORT, NETWORKS, DEFAULT_NETWORK, AI, INDEXER, BLOCKSCOUT, COINGECKO, AEON_TOKEN } from './config.js';
 import { loadFromDisk, saveToDisk } from './lib/cache.js';
 import { ipLimiter, dailyCap } from './lib/limiter.js';
 import { sseHandler, clientCount } from './lib/sse.js';
@@ -17,6 +17,7 @@ import { chat, tokenUniverse } from './services/ai.js';
 import * as insights from './services/insights.js';
 import * as whales from './services/whales.js';
 import * as board from './services/leaderboard.js';
+import * as aeon from './services/aeon.js';
 
 installDoh();
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -435,7 +436,18 @@ app.post('/rpc/:net', ipLimiter({ max: 600, windowMs: 5 * 60_000 }), async (req,
 
 // ---------------- AI ----------------
 // Per-visitor limit plus a global daily ceiling, so free AI quotas cannot be drained.
-app.post('/api/ai/chat', dailyCap(AI.dailyLimit, 'The AI has reached its daily limit. It resets at 00:00 UTC.'), ipLimiter({ max: AI.maxRequests, windowMs: AI.windowMs }), chat);
+// Verified token holders (signed pass in x-aeon-pass) get a larger AI allowance.
+const aiMax = (req) => (aeon.readPass(req.get('x-aeon-pass')) ? AI.maxRequests * AEON_TOKEN.holderAiMultiplier : AI.maxRequests);
+app.post('/api/ai/chat', dailyCap(AI.dailyLimit, 'The AI has reached its daily limit. It resets at 00:00 UTC.'), ipLimiter({ max: aiMax, windowMs: AI.windowMs }), chat);
+
+// ---------------- Aeon community token ----------------
+app.get('/api/aeon/token', api(() => aeon.tokenInfo(), 30));
+app.post('/api/aeon/challenge', ipLimiter({ max: 20, windowMs: 10 * 60_000 }), api((req) => aeon.challenge(req.body?.address), 0));
+app.post('/api/aeon/verify', ipLimiter({ max: 20, windowMs: 10 * 60_000 }), api((req) => aeon.verify(req.body || {}), 0));
+app.get('/api/aeon/pass', api((req) => {
+  const p = aeon.readPass(req.get('x-aeon-pass'));
+  return p ? { holder: true, address: p.a, balance: p.b, expires: p.exp, aiPer10Min: AI.maxRequests * AEON_TOKEN.holderAiMultiplier } : { holder: false, aiPer10Min: AI.maxRequests };
+}, 0));
 
 // ---------------- crawlers ----------------
 const origin = (req) => `${req.protocol}://${req.get('host')}`;

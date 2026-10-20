@@ -10,6 +10,7 @@ const views = {
   portfolio: () => import('./views/portfolio.js'),
   whales: () => import('./views/whales.js'),
   leaderboard: () => import('./views/leaderboard.js'),
+  ae: () => import('./views/ae.js'),
   explorer: () => import('./views/explorer.js'),
   ecosystem: () => import('./views/ecosystem.js'),
   tokens: () => import('./views/tokens.js'),
@@ -30,6 +31,7 @@ const TITLES = {
   portfolio: 'Portfolio · Aeon Network',
   whales: 'Whale tracker · Aeon Network',
   leaderboard: 'Top holders · Aeon Network',
+  ae: 'Aeon token · Aeon Network',
   explorer: 'Explorer · Aeon Network',
   ecosystem: 'Ecosystem · Aeon Network',
   tokens: 'Tokens · Aeon Network',
@@ -203,3 +205,12 @@ async function boot() {
   route();
 }
 boot();
+
+// Holder badge in the top bar while a valid holder pass is stored.
+function paintHolder() {
+  const p = prefs.get('aeon-pass', null);
+  const el = document.getElementById('holderBadge');
+  if (el) el.hidden = !(p && p.expires > Date.now());
+}
+addEventListener('aeon-pass', paintHolder);
+paintHolder();

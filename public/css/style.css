@@ -461,3 +461,16 @@ select.input.wh-select { width: auto; min-width: 160px; height: 34px; }
   .lb-p1 { order: -1; }
   .lb-tbl th:nth-child(2), .lb-tbl td:nth-child(2), .lb-tbl th:nth-child(6), .lb-tbl td:nth-child(6) { display: none; }
 }
+/* ---------- Aeon token ---------- */
+.holder-badge { font: 600 10.5px var(--mono); letter-spacing: 0.14em; background: var(--ink); color: var(--bg); padding: 4px 7px; }
+.ae-ca .box-body { display: grid; gap: 10px; padding: 20px; }
+.ae-ca-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ae-ca-row b { font-size: clamp(14px, 2vw, 20px); font-weight: 500; word-break: break-all; }
+.ae-ca p { margin: 0; font-size: 12.5px; }
+.ae-facts { display: grid; gap: 16px; }
+.ae-facts > div { display: grid; gap: 6px; }
+.ae-facts p { margin: 0; color: var(--ink-2); line-height: 1.6; }
+.ae-facts .tag { justify-self: start; }
+.ae-perk p { margin: 0 0 10px; color: var(--ink-2); }
+.ae-perk ul { margin: 0 0 16px; padding-left: 18px; line-height: 1.9; }
+.ae-ok { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
