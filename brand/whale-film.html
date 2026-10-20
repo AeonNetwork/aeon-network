@@ -1,0 +1,242 @@
+<!doctype html>
+<!-- Whale Tracker launch film (1920x1080, 30 s). Deep-sea look: drifting particles, sonar
+     rings, a real screenshot of the live page and real whale trades. window.render(t) draws
+     each frame; window.DATA (summary + trades) and window.SHOT are injected by the recorder.
+     Timed to brand/whale-sound.mjs. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;500;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+const x = document.getElementById('c').getContext('2d');
+const D = window.DATA;
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const out = (k) => 1 - (1 - k) ** 3;
+const io = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2);
+const lerp = (a, b, k) => a + (b - a) * k;
+let seed = 31;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const usd = (n) => (n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n / 1e3).toFixed(1) + 'K' : '$' + n.toFixed(0));
+
+// ---------- assets ----------
+const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'].map((d) => new Path2D(d));
+const SPR = new OffscreenCanvas(1040, 940);
+{ const g = SPR.getContext('2d'); g.scale(5, 5); g.translate(-96, -106); g.fillStyle = '#fff'; AE.forEach((p) => g.fill(p)); }
+function mark(cx, cy, h, a, glow = 0) {
+  if (a <= 0) return;
+  const w = (208 / 188) * h;
+  x.save(); x.globalAlpha = a;
+  if (glow) (x.shadowColor = '#fff'), (x.shadowBlur = glow);
+  x.drawImage(SPR, cx - w / 2, cy - h / 2, w, h);
+  x.restore();
+}
+const shot = new Image();
+const ready = new Promise((r) => (shot.onload = r));
+shot.src = window.SHOT;
+
+function text(str, px, py, size, { weight = 800, font = 'Geist', color = '#fff', alpha = 1, spacing = 0, align = 'center', blur = 0 } = {}) {
+  if (alpha <= 0) return;
+  x.save();
+  x.globalAlpha = alpha;
+  x.font = `${weight} ${size}px "${font}"`;
+  x.letterSpacing = spacing + 'px';
+  x.textAlign = align; x.textBaseline = 'middle'; x.fillStyle = color;
+  if (blur > 0.3) x.filter = `blur(${blur}px)`;
+  x.fillText(str, px, py);
+  x.restore();
+}
+function line(str, px, py, t, t0, t1, size, opts = {}) {
+  const k = out(span(t, t0, t0 + 1.0));
+  const a = k * (1 - span(t, t1 - 0.5, t1));
+  text(str, px, py + (1 - k) * 16, size, { ...opts, alpha: a * (opts.alpha ?? 1), blur: (1 - k) * 12, spacing: lerp((opts.spacing ?? 0) + 18, opts.spacing ?? 0, k) });
+}
+
+// ---------- deep sea ----------
+const P = Array.from({ length: 1300 }, () => ({ x: rnd() * W, y: rnd() * H, z: 0.2 + rnd() * 0.8, b: 0.15 + rnd() * 0.6, ph: rnd() * 6.28 }));
+function sea(t, alpha) {
+  // light from the surface
+  const g = x.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, `rgba(255,255,255,${0.07 * alpha})`); g.addColorStop(0.5, 'rgba(255,255,255,0.01)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  // god rays
+  x.save(); x.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 6; i++) {
+    const bx = 300 + i * 260 + Math.sin(t * 0.25 + i) * 60;
+    const rg = x.createLinearGradient(bx, 0, bx + 220, H * 0.8);
+    rg.addColorStop(0, `rgba(255,255,255,${0.035 * alpha})`); rg.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = rg;
+    x.beginPath(); x.moveTo(bx - 40, 0); x.lineTo(bx + 60, 0); x.lineTo(bx + 380, H); x.lineTo(bx + 140, H); x.closePath(); x.fill();
+  }
+  x.restore();
+  // drifting particles (rising slowly, like plankton)
+  for (const p of P) {
+    const y = ((p.y - t * 18 * p.z) % H + H) % H;
+    const px = p.x + Math.sin(t * 0.6 + p.ph) * 14 * p.z;
+    x.fillStyle = `rgba(255,255,255,${p.b * alpha * 0.7})`;
+    const s = 1 + p.z * 1.6;
+    x.fillRect(px, y, s, s);
+  }
+}
+function sonar(cx, cy, t, t0, rings = 3, maxR = 900, alpha = 1) {
+  for (let i = 0; i < rings; i++) {
+    const k = (t - t0 - i * 0.55) / 2.6;
+    if (k < 0 || k > 1) continue;
+    x.save();
+    x.strokeStyle = `rgba(255,255,255,${(1 - k) ** 1.6 * 0.55 * alpha})`;
+    x.lineWidth = 2;
+    x.beginPath(); x.ellipse(cx, cy, maxR * out(k), maxR * out(k) * 0.42, 0, 0, Math.PI * 2); x.stroke();
+    x.restore();
+  }
+}
+// a whale made of particles, gliding across
+const WHALE = (() => {
+  const pts = [];
+  for (let i = 0; i < 1500; i++) {
+    const u = rnd(), v = rnd() * 2 - 1;
+    // body: tapered ellipse along x in [-1, 1]
+    const bx = u * 2 - 1;
+    const thick = 0.22 * Math.sqrt(Math.max(0, 1 - bx * bx)) * (bx < 0 ? 1 : 0.85 - 0.5 * bx);
+    pts.push([bx, v * thick + 0.04 * Math.sin(bx * 3)]);
+  }
+  for (let i = 0; i < 300; i++) { // tail flukes
+    const s = rnd() * 2 - 1, r = rnd();
+    pts.push([1 + r * 0.22, s * (0.05 + r * 0.25)]);
+  }
+  for (let i = 0; i < 120; i++) pts.push([-0.15 + rnd() * 0.35, 0.18 + rnd() * 0.12]); // pectoral fin
+  return pts;
+})();
+function whale(t, t0, t1, alpha) {
+  if (t < t0 || t > t1) return;
+  const k = (t - t0) / (t1 - t0);
+  const cx = lerp(W + 500, -500, k), cy = H * 0.5 + Math.sin(k * 6) * 20;
+  const sc = 520;
+  const a = alpha * Math.min(1, k * 6, (1 - k) * 6);
+  for (const [px, py] of WHALE) {
+    const flex = Math.sin(t * 2.4 + px * 3) * 0.04 * Math.max(0, px);
+    x.fillStyle = `rgba(255,255,255,${a * (0.4 + 0.55 * rnd())})`;
+    x.fillRect(cx + px * sc, cy + (py + flex) * sc, 2.2, 2.2);
+  }
+}
+
+// ---------- UI pieces ----------
+function browser(t, t0, t1) {
+  const k = out(span(t, t0, t0 + 1.2));
+  const a = k * (1 - span(t, t1 - 0.5, t1));
+  if (a <= 0) return;
+  const FW = 1020, FH = 660, FX = 800, FY = 190 + (1 - k) * 50;
+  x.save(); x.globalAlpha = a;
+  x.shadowColor = 'rgba(0,0,0,0.95)'; x.shadowBlur = 90; x.shadowOffsetY = 30;
+  x.fillStyle = '#0a0a0a'; x.fillRect(FX, FY, FW, FH);
+  x.shadowColor = 'transparent';
+  x.strokeStyle = 'rgba(255,255,255,0.3)'; x.lineWidth = 1.5; x.strokeRect(FX + 0.5, FY + 0.5, FW - 1, FH - 1);
+  x.fillStyle = '#111'; x.fillRect(FX + 1, FY + 1, FW - 2, 42);
+  for (let i = 0; i < 3; i++) { x.strokeStyle = 'rgba(255,255,255,0.35)'; x.strokeRect(FX + 18 + i * 20, FY + 16, 10, 10); }
+  x.fillStyle = '#1a1a1a'; x.fillRect(FX + 130, FY + 10, FW - 260, 22);
+  text('🔒 getaeon.network/#/whales', FX + FW / 2, FY + 22, 15, { weight: 500, font: 'Geist Mono', color: '#a3a3a3' });
+  // slow push-in on the feed
+  const p = io(span(t, t0 + 0.8, t1 - 0.3));
+  const zoom = lerp(1, 1.32, p);
+  const vw = FW - 2, vh = FH - 44;
+  const sw = shot.width / zoom, sh = sw * (vh / vw);
+  const sx = lerp(0, shot.width * 0.03, p), sy = lerp(60, shot.height * 0.27, p);
+  x.beginPath(); x.rect(FX + 1, FY + 43, vw, vh); x.clip();
+  x.drawImage(shot, sx, sy, sw, sh, FX + 1, FY + 43, vw, vh);
+  x.restore();
+}
+function tradeRow(w, px, py, wdt, a, glow) {
+  if (a <= 0) return;
+  x.save(); x.globalAlpha = a;
+  x.fillStyle = 'rgba(8,8,8,0.88)'; x.fillRect(px, py, wdt, 86);
+  x.strokeStyle = `rgba(255,255,255,${0.25 + 0.5 * glow})`; x.lineWidth = 1.5; x.strokeRect(px + 0.5, py + 0.5, wdt - 1, 85);
+  if (glow > 0.01) { x.shadowColor = '#fff'; x.shadowBlur = 40 * glow; x.strokeRect(px + 0.5, py + 0.5, wdt - 1, 85); x.shadowBlur = 0; }
+  const buy = w.side === 'buy';
+  x.fillStyle = buy ? '#fff' : 'transparent'; x.fillRect(px + 22, py + 26, 96, 34);
+  x.strokeStyle = '#fff'; x.strokeRect(px + 22.5, py + 26.5, 95, 33);
+  x.restore();
+  text(buy ? 'BUY' : 'SELL', px + 70, py + 44, 16, { font: 'Geist Mono', weight: 600, color: buy ? '#000' : '#fff', alpha: a, spacing: 3 });
+  text(`${w.symbol} · ${w.shares.toLocaleString('en-US', { maximumFractionDigits: 1 })} shares`, px + 145, py + 32, 24, { font: 'Geist Mono', weight: 600, align: 'left', alpha: a });
+  text(`${w.wallet.slice(0, 6)}…${w.wallet.slice(-4)}${w.venue ? ' · via ' + w.venue : ''}`, px + 145, py + 60, 17, { font: 'Geist Mono', weight: 400, color: '#8a8a8a', align: 'left', alpha: a });
+  text(usd(w.usd), px + wdt - 28, py + 44, 34, { font: 'Geist Mono', weight: 600, align: 'right', alpha: a });
+}
+
+window.render = (t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.filter = 'none';
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  sea(t, t < 1.5 ? t / 1.5 : t > 28.6 ? Math.max(0, 1 - (t - 28.6) / 1.2) : 1);
+
+  // 1 · 0–7 : the deep
+  whale(t, 0.8, 9.5, 0.9 * (1 - span(t, 6.8, 7.4)));
+  line('BIG MONEY MOVES QUIETLY.', CX, CY + 300, t, 1.2, 4.0, 46, { weight: 700, spacing: 2 });
+  line('NOW YOU CAN SEE IT.', CX, CY + 300, t, 4.2, 6.9, 46, { weight: 700, spacing: 2 });
+  sonar(CX, CY, t, 3.9, 3, 1000, 0.8);
+
+  // 2 · 7–11 : title
+  if (t >= 7 && t < 11.3) {
+    const k = out(span(t, 7, 7.9)), f = 1 - span(t, 10.8, 11.3);
+    sonar(CX, CY - 40, t, 7.0, 4, 1100, 1);
+    mark(CX, CY - 150, 120 * lerp(1.1, 1, k), k * f, 50 * (1 - k) + 18);
+    line('WHALE TRACKER', CX, CY + 10, t, 7.4, 11.3, 150, { weight: 900, spacing: -4 });
+    line('LIVE ON AEON NETWORK', CX, CY + 120, t, 8.2, 11.3, 26, { weight: 600, font: 'Geist Mono', spacing: 10, color: '#9a9a9a' });
+  }
+  // flash at the title hit
+  if (t >= 7 && t < 7.5) (x.fillStyle = `rgba(255,255,255,${0.6 * (1 - span(t, 7, 7.5)) ** 2})`), x.fillRect(0, 0, W, H);
+
+  // 3 · 11–19 : the real page + real numbers
+  if (t >= 11 && t < 19.3) {
+    browser(t, 11.1, 19.3);
+    line('Every large trade.', 110, 380, t, 11.4, 19.3, 56, { align: 'left', spacing: -2 });
+    line('Read from the chain.', 110, 448, t, 11.6, 19.3, 56, { align: 'left', spacing: -2, color: '#6b6b6b' });
+    const s = D.summary;
+    [['WHALE TRADES · 24H', String(s.trades24h)], ['BOUGHT · 24H', usd(s.buyUsd24h)], ['SOLD · 24H', usd(s.sellUsd24h)]].forEach(([k, v], i) => {
+      const a = out(span(t, 12.6 + i * 0.3, 13.4 + i * 0.3)) * (1 - span(t, 18.8, 19.3));
+      text(k, 110, 590 + i * 92, 17, { font: 'Geist Mono', weight: 600, color: '#7a7a7a', align: 'left', spacing: 3, alpha: a });
+      // count up
+      const raw = i === 0 ? s.trades24h : i === 1 ? s.buyUsd24h : s.sellUsd24h;
+      const n = raw * out(span(t, 12.6 + i * 0.3, 14.2 + i * 0.3));
+      text(i === 0 ? String(Math.round(n)) : usd(n), 110, 630 + i * 92, 40, { font: 'Geist Mono', weight: 500, align: 'left', alpha: a });
+    });
+  }
+
+  // 4 · 19–25 : trades surface one by one
+  if (t >= 19 && t < 25.3) {
+    line('Buys. Sells. Who. How much.', CX, 200, t, 19.2, 25.3, 58, { spacing: -1.5 });
+    D.trades.forEach((w, i) => {
+      const t0 = 19.8 + i * 0.55;
+      const k = out(span(t, t0, t0 + 0.7));
+      const a = k * (1 - span(t, 24.8, 25.3));
+      const glow = Math.exp(-Math.max(0, t - t0 - 0.3) / 0.6) * (t > t0);
+      tradeRow(w, 360, 300 + i * 112 + (1 - k) * 30, 1200, a, glow);
+      if (t > t0 && t < t0 + 2.6) sonar(360 + 70, 343 + i * 112, t, t0, 1, 260, 0.5);
+    });
+  }
+
+  // 5 · 25–30 : end card
+  if (t >= 25) {
+    const k = out(span(t, 25.2, 26.2)), f = 1 - span(t, 29.0, 29.8);
+    sonar(CX, CY - 60, t, 25.2, 3, 1000, 0.9 * f);
+    mark(CX, CY - 150, 110, k * f, 30 * (1 - k) + 14);
+    line('Follow the whales.', CX, CY + 10, t, 25.5, 29.8, 96, { spacing: -3 });
+    line('getaeon.network/#/whales', CX, CY + 110, t, 26.1, 29.8, 30, { weight: 500, font: 'Geist Mono', spacing: 3, color: '#bdbdbd' });
+  }
+
+  // lens: vignette + letterbox + grain
+  const v = x.createRadialGradient(CX, CY, H * 0.3, CX, CY, H * 0.95);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.78)');
+  x.fillStyle = v; x.fillRect(0, 0, W, H);
+  for (let i = 0; i < 400; i++) { x.fillStyle = `rgba(255,255,255,${0.03 * rnd()})`; x.fillRect(rnd() * W, rnd() * H, 1.5, 1.5); }
+  const bar = 110 * out(span(t, 0, 1.2));
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, bar); x.fillRect(0, H - bar, W, bar);
+  const fo = span(t, 29.4, 30);
+  if (fo > 0) (x.fillStyle = `rgba(0,0,0,${fo})`), x.fillRect(0, 0, W, H);
+};
+const fonts = ['300 10px Geist', '500 10px Geist', '700 10px Geist', '800 10px Geist', '900 10px Geist', '400 10px "Geist Mono"', '500 10px "Geist Mono"', '600 10px "Geist Mono"'].map((f) => document.fonts.load(f));
+Promise.all([...fonts, ready]).then(() => (window.__ready = true));
+</script>
+</body>
+</html>
