@@ -8,6 +8,8 @@ import { NETWORKS, BLOCKSCOUT, COINGECKO, CACHE_DIR } from '../config.js';
 import { cached } from '../lib/cache.js';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import * as chain from './chain.js';
+import * as alc from './alchemy.js';
 
 export const upstream = {};
 const mark = (name, ok, error = '') => (upstream[name] = { ok, at: Date.now(), error });
@@ -187,7 +189,8 @@ export async function bs(net, path, ttl) {
     }
     bsFails[net] = { count: 0, at: Date.now() };
     return data;
-  });
+    // While credits are out, the last good answer keeps serving (marked stale) for up to 30 days.
+  }, { maxStaleMs: 30 * 86_400_000 });
 }
 
 const num = (v) => (v == null || v === '' ? null : Number(v));
@@ -255,10 +258,31 @@ export async function latest(net) {
 }
 
 export async function addressHistory(net, addr) {
-  if (!blockscoutAvailable(net)) return null;
+  if (BLOCKSCOUT.enabled && !bsDown(net)) {
+    try {
+      const { value } = await bs(net, `/addresses/${addr}/transactions`, 30_000);
+      return (value.items || []).slice(0, 25).map(bsTx);
+    } catch {}
+  }
+  // Without Blockscout: the address's latest token transfers in and out, from Alchemy.
+  if (!alc.alchemyEnabled(net)) return null;
   try {
-    const { value } = await bs(net, `/addresses/${addr}/transactions`, 30_000);
-    return (value.items || []).slice(0, 25).map(bsTx);
+    const [ins, outs] = await Promise.all([alc.transfers(net, { toAddress: addr, max: 25 }), alc.transfers(net, { fromAddress: addr, max: 25 })]);
+    const seen = new Set();
+    return [...ins, ...outs]
+      .map((x) => ({
+        hash: x.hash,
+        from: x.from,
+        to: x.to,
+        valueWei: '0',
+        method: `transfer ${x.asset || 'token'}`,
+        block: x.blockNum ? Number(x.blockNum) : null,
+        time: x.metadata?.blockTimestamp ? Date.parse(x.metadata.blockTimestamp) : null,
+        status: 'success',
+      }))
+      .filter((t) => !seen.has(t.hash) && seen.add(t.hash))
+      .sort((a, b) => (b.block ?? 0) - (a.block ?? 0))
+      .slice(0, 25);
   } catch {
     return null;
   }
@@ -491,6 +515,62 @@ async function cgJSON(url, opts) {
 
 // ---- Token profile: everything about one token in a single response.
 export async function tokenProfile(net, addr) {
+  try {
+    return await tokenProfileBs(net, addr);
+  } catch (err) {
+    if (!err.credits && !(err.status >= 500)) throw err;
+    return tokenProfileChain(net, addr);
+  }
+}
+
+// Token profile without Blockscout: name and supply from the contract, holders and price from the
+// stock list and CoinGecko, recent transfers from Alchemy. Top holders need an indexer, so they're left out.
+async function tokenProfileChain(net, addr) {
+  const meta = await chain.tokenMeta(net, addr);
+  const [stocks, markets, transfers] = await Promise.all([
+    NETWORKS[net].blockscoutPro ? stockTokens(net).then((r) => r.value).catch(() => []) : [],
+    stockMarkets(net).then((r) => r.value).catch(() => ({})),
+    alc.alchemyEnabled(net) ? alc.transfers(net, { contracts: [addr], max: 25 }).catch(() => []) : [],
+  ]);
+  const stock = stocks.find((s) => s.address.toLowerCase() === addr.toLowerCase()) || null;
+  const price = markets[addr.toLowerCase()]?.price ?? stock?.price ?? null;
+  const supply = meta.totalSupply ? alc.units('0x' + BigInt(meta.totalSupply).toString(16), meta.decimals) : null;
+  return {
+    address: addr,
+    name: meta.name,
+    symbol: meta.symbol,
+    type: 'ERC-20',
+    decimals: meta.decimals,
+    totalSupply: meta.totalSupply,
+    price,
+    marketCap: price != null && supply != null ? price * supply : null,
+    volume24h: stock?.volume24h ?? null,
+    holders: stock?.holders ?? null,
+    transfers: null,
+    icon: stock?.icon ?? null,
+    reputation: null,
+    official: Boolean(stock),
+    stock: stock ? { name: stock.name, kind: stock.kind } : null,
+    looksLikeStock: !stock && /robinhood|•/i.test(meta.name || ''),
+    contract: null,
+    topHolders: [],
+    top10Pct: null,
+    recentTransfers: transfers.map((x) => ({
+      tx: x.hash,
+      from: x.from,
+      fromName: null,
+      to: x.to,
+      toName: null,
+      amount: x.rawContract?.value ? BigInt(x.rawContract.value).toString() : null,
+      decimals: meta.decimals,
+      time: x.metadata?.blockTimestamp ? Date.parse(x.metadata.blockTimestamp) : null,
+      method: null,
+    })),
+    partial: true,
+  };
+}
+
+async function tokenProfileBs(net, addr) {
   const safe = (p) => p.then((r) => r.value).catch(() => null);
   const [t, counters, contract, holders, transfers, stocks] = await Promise.all([
     bs(net, `/tokens/${addr}`, 5 * 60_000).then((r) => r.value),

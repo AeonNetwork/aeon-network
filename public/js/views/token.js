@@ -146,7 +146,7 @@ function mount(main, addr) {
 }
 
 function holdersTable(t) {
-  if (!t.topHolders.length) return '<div class="empty">No holder data.</div>';
+  if (!t.topHolders.length) return `<div class="empty">${t.partial ? 'The holder list is temporarily unavailable. Supply, price and transfers above are live.' : 'No holder data.'}</div>`;
   const max = Math.max(...t.topHolders.map((h) => h.sharePct || 0), 0.0001);
   return `<table class="tbl"><thead><tr><th>#</th><th>Holder</th><th class="num">Amount</th><th class="num">Share</th></tr></thead><tbody>${t.topHolders
     .map(

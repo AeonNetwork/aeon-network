@@ -32,8 +32,12 @@ export async function balanceOf(addr) {
 export function tokenInfo() {
   return cached('aeon:token', 60_000, async () => {
     const [t, holders, creatorBal, team] = await Promise.all([
-      eco.bs(T.network, `/tokens/${T.address}`, 60_000).then((r) => r.value),
-      eco.bs(T.network, `/tokens/${T.address}/holders`, 60_000).then((r) => r.value.items || []),
+      // Blockscout (or its last saved answer); without it, the contract itself for name and supply.
+      eco.bs(T.network, `/tokens/${T.address}`, 60_000).then((r) => r.value).catch(async () => {
+        const m = await chain.tokenMeta(T.network, T.address);
+        return { name: m.name, symbol: m.symbol, decimals: m.decimals, total_supply: m.totalSupply, holders_count: null };
+      }),
+      eco.bs(T.network, `/tokens/${T.address}/holders`, 60_000).then((r) => r.value.items || []).catch(() => []),
       balanceOf(T.creator).catch(() => null),
       Promise.all(T.teamWallets.map(async (a) => ({ address: a, balance: await balanceOf(a).catch(() => null) }))),
     ]);

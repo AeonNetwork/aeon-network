@@ -208,6 +208,10 @@ export async function portfolioExample(net) {
     const holder = p?.topHolders?.find((h) => !h.isContract);
     if (holder) return { address: holder.address, reason: `Largest individual holder of ${s.symbol}` };
   }
+  // No holder lists right now: fall back to the leaderboard's top wallet.
+  const { leaderboard } = await import('./leaderboard.js');
+  const top = leaderboard().rows?.[0];
+  if (top) return { address: top.address, reason: 'Largest stock portfolio on the leaderboard' };
   throw Object.assign(new Error('No example available right now'), { status: 503 });
 }
 
