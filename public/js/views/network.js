@@ -29,6 +29,7 @@ function mount(main) {
         <div class="kicker">${esc(n.name)} · ${isMain ? 'Mainnet' : 'Testnet'} · Chain ID ${n.chainId}</div>
         <div class="hero-block mt" id="hBlock">#—</div>
         <p class="hero-title">The live hub for Robinhood Chain. Every block, transaction and protocol, as it happens.</p>
+        <div class="hero-cta"><a class="btn btn-primary" href="#/portfolio">Track your stocks</a><a class="btn" href="#/ai">Ask the chain</a></div>
       </div>
       <div class="hero-stats">
         <div><span>Block time</span><b id="hBt">—</b></div>

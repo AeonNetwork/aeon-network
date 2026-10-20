@@ -262,6 +262,8 @@ app.get(
 // ---------------- insights ----------------
 app.get('/api/status', (req, res) => res.set('cache-control', 'no-store').json(insights.status()));
 app.get('/api/network/:net/portfolio/:addr', api((req) => insights.portfolio(net(req), req.params.addr), 20));
+app.get('/api/network/:net/portfolio/:addr/detail', api((req) => insights.portfolioDetail(net(req), req.params.addr), 30));
+app.get('/api/network/:net/portfolio-example', api((req) => insights.portfolioExample(net(req)), 300));
 app.get('/api/network/:net/approvals/:addr', api((req) => insights.approvals(net(req), req.params.addr), 20));
 app.get('/api/network/:net/crosscheck/:kind/:id', api((req) => insights.crosscheck(net(req), req.params.kind, req.params.id), 0));
 

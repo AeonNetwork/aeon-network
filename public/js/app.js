@@ -7,6 +7,7 @@ import { chooseWallet, restore } from './wallet.js';
 const views = {
   network: () => import('./views/network.js'),
   stocks: () => import('./views/stocks.js'),
+  portfolio: () => import('./views/portfolio.js'),
   explorer: () => import('./views/explorer.js'),
   ecosystem: () => import('./views/ecosystem.js'),
   tokens: () => import('./views/tokens.js'),
@@ -23,6 +24,7 @@ const views = {
 const TITLES = {
   network: 'Aeon Network — The live hub for Robinhood Chain',
   stocks: 'Tokenized Stocks · Aeon Network',
+  portfolio: 'Portfolio · Aeon Network',
   explorer: 'Explorer · Aeon Network',
   ecosystem: 'Ecosystem · Aeon Network',
   tokens: 'Tokens · Aeon Network',
@@ -40,7 +42,7 @@ const TITLES = {
 let cleanup = null;
 async function route() {
   const [, name = '', ...rest] = location.hash.replace(/^#/, '').split('/');
-  const alias = { '': 'network', chain: 'network', markets: 'network', terminal: 'network', portfolio: 'wallet' };
+  const alias = { '': 'network', chain: 'network', markets: 'network', terminal: 'network' };
   const key = views[alias[name] ?? name] ? alias[name] ?? name : 'notfound';
   const mod = await views[key]();
   const main = document.getElementById('view');

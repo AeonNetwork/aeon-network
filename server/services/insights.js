@@ -22,6 +22,16 @@ const units = (raw, decimals) => {
   }
 };
 
+// Scam tokens put phishing messages in their name ("assets frozen, verify at …").
+// Never repeat those: drop links and long text, and say what it is instead.
+const LINKISH = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(xyz|com|io|net|org|app|site|top|fun|info|live|online|pro|link|claims?|gift|vip)\b|\bt\.me\b)/i;
+const PHISHY = /(verify|frozen|freeze|kyc|claim|airdrop|reward|alert|suspend|restore|compliance|visit|urgent)/i;
+function safeLabel(symbol, name) {
+  const s = String(symbol ?? ''), n = String(name ?? '');
+  if (LINKISH.test(s + ' ' + n) || (PHISHY.test(s + ' ' + n) && (s + n).length > 40)) return { symbol: '⚠ phishing', name: 'Scam token: its name tells holders to visit a website. Do not follow it.', phishing: true };
+  return { symbol: s.slice(0, 16), name: n.length > 48 ? n.slice(0, 47) + '…' : n };
+}
+
 // ---------------- wallet check: stock holdings & copycats ----------------
 
 export async function portfolio(net, addr) {
@@ -45,10 +55,11 @@ export async function portfolio(net, addr) {
     if (stock) {
       holdings.push({ address: stock.address, symbol: stock.symbol, name: stock.name, icon: stock.icon, kind: stock.kind, price: stock.price, amount, valueUsd: stock.price != null ? amount * stock.price : null });
     } else if (t.type !== 'ERC-721' && t.type !== 'ERC-1155' && (officialSymbols.has((t.symbol || '').toUpperCase()) || /robinhood/i.test(t.name || ''))) {
-      copycats.push({ address: t.address_hash, symbol: t.symbol, name: t.name, type: t.type, amount });
+      copycats.push({ address: t.address_hash, ...safeLabel(t.symbol, t.name), type: t.type, amount });
     } else {
       const price = t.exchange_rate != null ? Number(t.exchange_rate) : null;
-      others.push({ address: t.address_hash, symbol: t.symbol, name: t.name, type: t.type, amount: t.type === 'ERC-721' ? Number(b.value) : amount, price, valueUsd: price != null ? amount * price : null, scam: t.reputation === 'scam' });
+      const label = safeLabel(t.symbol, t.name);
+      others.push({ address: t.address_hash, ...label, type: t.type, amount: t.type === 'ERC-721' ? Number(b.value) : amount, price, valueUsd: price != null ? amount * price : null, scam: t.reputation === 'scam' || Boolean(label.phishing) });
     }
   }
   holdings.sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0));
@@ -65,6 +76,99 @@ export async function portfolio(net, addr) {
     othersValueUsd: others.reduce((s, o) => s + (o.valueUsd || 0), 0),
     note: 'Token balances from Blockscout (first page of holdings); stock prices from the official token list.',
   };
+}
+
+// ---------------- portfolio: brokerage-style view of stock tokens ----------------
+// Adds what a broker app shows on top of portfolio(): 24 h change, a 7-day sparkline per
+// position, what the current positions were worth over the last 7 days, and recent
+// stock-token transfers. Prices: CoinGecko hourly history; balances: Blockscout.
+
+const within = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+const priceAt = (points, t) => {
+  let v = null;
+  for (const p of points) {
+    if (p.t > t) break;
+    v = p.v;
+  }
+  return v;
+};
+const downsample = (points, n) => (points.length <= n ? points : Array.from({ length: n }, (_, i) => points[Math.round((i * (points.length - 1)) / (n - 1))]));
+
+export async function portfolioDetail(net, addr) {
+  const base = await portfolio(net, addr);
+  const now = Date.now();
+  // One shared, cached market snapshot for all stock tokens (see eco.stockMarkets).
+  const markets = await within(eco.stockMarkets(net), 12_000).then((r) => r.value || {}).catch(() => ({}));
+  const top = base.holdings;
+  const series = top.map((h) => {
+    const pts = markets[h.address.toLowerCase()]?.points;
+    return pts?.length > 1 ? pts : null;
+  });
+  let change24hUsd = 0, coveredUsd = 0;
+  const holdings = base.holdings.map((h, i) => {
+    const pts = series[i];
+    const change24h = markets[h.address.toLowerCase()]?.change24h ?? null;
+    if (change24h == null) return { ...h, change24h: null, spark: pts ? downsample(pts, 48).map((p) => p.v) : null };
+    if (change24h != null && h.valueUsd) {
+      change24hUsd += h.valueUsd - h.valueUsd / (1 + change24h);
+      coveredUsd += h.valueUsd;
+    }
+    return { ...h, change24h, spark: pts ? downsample(pts, 48).map((p) => p.v) : null };
+  });
+
+  // What the current positions were worth over the last 7 days, hour by hour.
+  const history = [];
+  if (series.some(Boolean)) {
+    const start = Math.ceil((now - 7 * 86_400_000) / 3_600_000) * 3_600_000;
+    for (let t = start; t <= now; t += 3_600_000) {
+      let v = 0, any = false;
+      top.forEach((h, i) => {
+        const p = series[i] && priceAt(series[i], t);
+        if (p != null) (v += h.amount * p), (any = true);
+      });
+      if (any) history.push({ t, v });
+    }
+  }
+
+  // Recent transfers of the five largest positions.
+  const lower = addr.toLowerCase();
+  const pages = await Promise.all(
+    base.holdings.slice(0, 5).map((h) => eco.bs(net, `/addresses/${addr}/token-transfers?token=${h.address}`, 60_000).then((r) => ({ h, items: r.value.items || [] })).catch(() => ({ h, items: [] }))),
+  );
+  const activity = pages
+    .flatMap(({ h, items }) =>
+      items.map((x) => {
+        const incoming = (x.to?.hash || '').toLowerCase() === lower;
+        const other = incoming ? x.from : x.to;
+        const amount = units(x.total?.value ?? '0', Number(x.total?.decimals ?? 18));
+        return { t: Date.parse(x.timestamp), dir: incoming ? 'in' : 'out', symbol: h.symbol, token: h.address, amount, valueNowUsd: h.price != null ? amount * h.price : null, counterparty: other?.hash || null, counterpartyName: other?.name || null, counterpartyIsContract: Boolean(other?.is_contract), tx: x.transaction_hash, method: x.method || null };
+      }),
+    )
+    .sort((a, b) => b.t - a.t)
+    .slice(0, 30);
+
+  return {
+    ...base,
+    holdings,
+    change24hUsd: coveredUsd ? change24hUsd : null,
+    change24hPct: coveredUsd ? change24hUsd / (coveredUsd - change24hUsd) : null,
+    priceCoverage: base.stocksValueUsd ? coveredUsd / base.stocksValueUsd : 0,
+    history,
+    activity,
+    note: 'Balances from Blockscout; current prices from the official token list; 24 h change and history from CoinGecko hourly prices. History values your current positions at past prices.',
+  };
+}
+
+// A real, current example: the largest individual (non-contract) holder of the most-held stock token.
+export async function portfolioExample(net) {
+  if (net !== 'mainnet') throw Object.assign(new Error('Examples are available on mainnet'), { status: 404 });
+  const stocks = (await eco.stockTokens(net)).value.filter((s) => s.holders).sort((a, b) => b.holders - a.holders);
+  for (const s of stocks.slice(0, 4)) {
+    const p = await eco.tokenProfile(net, s.address).then((r) => r.value ?? r).catch(() => null);
+    const holder = p?.topHolders?.find((h) => !h.isContract);
+    if (holder) return { address: holder.address, reason: `Largest individual holder of ${s.symbol}` };
+  }
+  throw Object.assign(new Error('No example available right now'), { status: 503 });
 }
 
 // ---------------- token approvals ----------------

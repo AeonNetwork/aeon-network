@@ -521,6 +521,46 @@ export async function tokenProfile(net, addr) {
 }
 
 // Price history from CoinGecko (tokens it tracks on Robinhood Chain), mainnet only.
+// Market data for every listed stock token in two CoinGecko calls per 10 minutes, no matter
+// how many portfolios are open: the contract -> id map (daily) and one markets call per
+// 100 ids with 24 h change and the hourly 7-day sparkline.
+function robinhoodIds() {
+  return cached('cg:rh-ids', 24 * 3600_000, async () => {
+    const headers = COINGECKO.key ? { [COINGECKO.pro ? 'x-cg-pro-api-key' : 'x-cg-demo-api-key']: COINGECKO.key } : {};
+    const list = await cgJSON(`${COINGECKO.base}/coins/list?include_platform=true`, { headers, timeout: 30_000 });
+    const map = {};
+    for (const c of list) {
+      const a = c.platforms?.robinhood;
+      if (a) map[a.toLowerCase()] = c.id;
+    }
+    return map;
+  });
+}
+export function stockMarkets(net) {
+  if (!NETWORKS[net].llamaChain) return Promise.resolve({ value: {} });
+  return cached(`cg:stock-markets:${net}`, 10 * 60_000, async () => {
+    const headers = COINGECKO.key ? { [COINGECKO.pro ? 'x-cg-pro-api-key' : 'x-cg-demo-api-key']: COINGECKO.key } : {};
+    const [{ value: ids }, { value: stocks }] = await Promise.all([robinhoodIds(), stockTokens(net)]);
+    const byId = new Map(stocks.map((s) => [ids[s.address.toLowerCase()], s.address]).filter(([id]) => id));
+    const wanted = [...byId.keys()];
+    const out = {};
+    for (let i = 0; i < wanted.length; i += 100) {
+      const rows = await cgJSON(`${COINGECKO.base}/coins/markets?vs_currency=usd&ids=${wanted.slice(i, i + 100).join(',')}&sparkline=true&price_change_percentage=24h&per_page=250`, { headers, timeout: 20_000 });
+      for (const m of rows) {
+        const prices = m.sparkline_in_7d?.price || [];
+        const end = Date.parse(m.last_updated) || Date.now();
+        out[byId.get(m.id).toLowerCase()] = {
+          id: m.id,
+          price: m.current_price,
+          change24h: m.price_change_percentage_24h != null ? m.price_change_percentage_24h / 100 : null,
+          points: prices.map((v, k) => ({ t: end - (prices.length - 1 - k) * 3_600_000, v })),
+        };
+      }
+    }
+    return out;
+  });
+}
+
 export async function tokenPriceHistory(net, addr, days) {
   if (!NETWORKS[net].llamaChain) throw Object.assign(new Error('Price history is only tracked on mainnet'), { status: 404 });
   const headers = COINGECKO.key ? { [COINGECKO.pro ? 'x-cg-pro-api-key' : 'x-cg-demo-api-key']: COINGECKO.key } : {};

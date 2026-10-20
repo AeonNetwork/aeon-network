@@ -68,6 +68,12 @@ for (const net of ['mainnet', 'testnet']) {
 await check('mainnet stocks list', async () => assert((await get('/api/network/mainnet/stocks')).body.length > 10, 'too few stocks'));
 await check('stock detail (TSLA)', () => get(`/api/network/mainnet/stocks/${TSLA}`));
 await check('token profile (WETH)', () => get(`/api/network/mainnet/token/${WETH}/profile`));
+await check('portfolio example + detail', async () => {
+  const ex = (await get('/api/network/mainnet/portfolio-example')).body;
+  const d = (await get(`/api/network/mainnet/portfolio/${ex.address}/detail`)).body;
+  assert(d.holdings.length > 0 && d.stocksValueUsd > 0, 'empty portfolio');
+  assert(Array.isArray(d.activity) && Array.isArray(d.history), 'missing activity/history');
+});
 await check('address lookup', () => get(`/api/network/mainnet/address/${WETH}`));
 await check('search', () => get(`/api/network/mainnet/lookup?q=${WETH}`));
 for (const p of ['summary', 'protocols', 'tvl', 'dex', 'fees', 'stablecoins']) await check(`ecosystem ${p}`, () => get(`/api/ecosystem/mainnet/${p}`));
