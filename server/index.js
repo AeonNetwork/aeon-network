@@ -18,6 +18,7 @@ import * as insights from './services/insights.js';
 import * as whales from './services/whales.js';
 import * as board from './services/leaderboard.js';
 import * as aeon from './services/aeon.js';
+import * as scanner from './services/scanner.js';
 import * as pulse from './services/pulse.js';
 
 installDoh();
@@ -322,6 +323,8 @@ app.get(
   }, 60),
 );
 app.get('/api/network/:net/portfolio-example', api((req) => insights.portfolioExample(net(req)), 300));
+// Token Safety Scanner: a scan reads up to ~10k transfers, so it gets its own per-IP limit.
+app.get('/api/network/:net/scan/:addr', ipLimiter({ max: 30, windowMs: 10 * 60_000 }), api((req) => scanner.scan(net(req), req.params.addr), 60));
 app.get('/api/network/:net/approvals/:addr', api((req) => insights.approvals(net(req), req.params.addr), 20));
 app.get('/api/network/:net/crosscheck/:kind/:id', api((req) => insights.crosscheck(net(req), req.params.kind, req.params.id), 0));
 
@@ -553,8 +556,9 @@ const PAGES = {
   whales: ['Whale Tracker · Aeon Network', 'Every large buy and sell of tokenized stocks on Robinhood Chain, read from the chain every 90 seconds.', 'whales'],
   portfolio: ['Portfolio · Aeon Network', "Any wallet's tokenized stocks, valued live: today's gain or loss, 7-day history, every trade. Fakes flagged.", 'portfolio'],
   stocks: ['Tokenized Stocks · Aeon Network', 'All official ERC-8056 stock tokens on Robinhood Chain, and a check that tells them from copycats.', 'stocks'],
-  ai: ['Network AI · Aeon Network', 'Ask anything about Robinhood Chain. The AI reads blocks, wallets and tokens before it answers.', 'ai'],
+  ai: ['Aeon AI Agent · Aeon Network', 'An AI agent for Robinhood Chain: it scans tokens, follows whales, opens wallets and reads the chain before it answers.', 'ai'],
   pulse: ['Network Pulse · Aeon Network', 'Robinhood Chain today: transactions, fees, DEX volume, TVL, stablecoins and whales, with day-over-day change.', 'pulse'],
+  scan: ['Token Safety Scanner · Aeon Network', 'Paste any token on Robinhood Chain: admin powers, owner, a live honeypot test, holder spread and liquidity, read from the chain.', 'scan'],
   leaderboard: ['Top holders · Aeon Network', 'The 50 largest tokenized-stock portfolios on Robinhood Chain, ranked by live value.', 'leaderboard'],
   changelog: ["What's new · Aeon Network", 'Every Aeon Network release, newest first.', 'changelog'],
 };

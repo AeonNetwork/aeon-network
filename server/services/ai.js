@@ -21,7 +21,14 @@ How you work:
 - Network totals (transactions, addresses, block time) come from Blockscout. Live rates from Aeon's indexer may be estimates from sampled blocks; say so when you quote them.
 - Ecosystem figures (TVL, protocols, DEX volume, fees) come from DefiLlama.
 - Be precise with units: wei vs ETH (1 ETH = 1e18 wei), gwei for gas, token decimals for token amounts.
-- Keep it scannable: short paragraphs, bullets, bold for the key facts.`;
+- Keep it scannable: short paragraphs, bullets, bold for the key facts.
+
+You are an agent, not just a chat:
+- For a question that needs several facts, call every tool you need (in parallel when they are independent) before answering. Chain them: e.g. find a wallet with get_whales, then open it with get_portfolio.
+- "Is this token safe / a rug / a honeypot?" → scan_token. Report the grade, the serious flags with their evidence, and what the scan cannot prove. Never call a token safe; say what was checked.
+- Whale moves → get_whales. A wallet's stock holdings → get_portfolio. Largest holders → get_leaderboard. "How is the network today" → get_network_pulse. Questions about Aeon's own token (AE, contract 0xb4fc414ac279bb3136e3cf7ec5084846af3bb459 on mainnet) → get_aeon_token; to judge its risk, scan_token that address.
+- End answers built from tools with a one-line "Sources:" naming the tools' data sources (RPC, Alchemy, DEX Screener, DefiLlama, CoinGecko, Aeon indexer).
+- Never give price predictions or tell anyone to buy or sell.`;
 
 const NET = { type: 'string', enum: ['mainnet', 'testnet'], description: 'Which Robinhood Chain network' };
 const TOOLS = [
@@ -61,7 +68,40 @@ const TOOLS = [
     input_schema: { type: 'object', properties: { query: { type: 'string', description: 'Ticker or company name, e.g. TSLA or Tesla' } }, required: ['query'], additionalProperties: false },
   },
 ];
-const TOOL_LABEL = { get_network_overview: 'Reading network state', get_block: 'Opening block', get_transaction: 'Decoding transaction', get_address: 'Inspecting address', get_ecosystem: 'Loading ecosystem data', get_stock_tokens: 'Loading tokenized stocks', verify_token: 'Verifying token' };
+TOOLS.push(
+  {
+    name: 'scan_token',
+    description: 'Token Safety Scanner: reads a token contract on Robinhood Chain and returns a 0-100 score, an A-F grade and checks with evidence: admin functions in the bytecode (mint, pause, blacklist, tax, limits), owner or renounced, proxy/upgradeable, a simulated transfer from a real holder (honeypot test), holder concentration from the full transfer history, DEX liquidity, age, and whether it copies an official Robinhood stock.',
+    input_schema: { type: 'object', properties: { network: NET, address: { type: 'string', description: 'Token contract address, 0x + 40 hex' } }, required: ['network', 'address'], additionalProperties: false },
+  },
+  {
+    name: 'get_whales',
+    description: "Large buys and sells of official tokenized stocks on Robinhood Chain mainnet (from Aeon's on-chain scan): 24h summary, the most active whale wallets and the latest trades. Optional filters.",
+    input_schema: { type: 'object', properties: { symbol: { type: 'string', description: 'Stock ticker, e.g. TSLA' }, side: { type: 'string', enum: ['buy', 'sell', 'mint', 'redeem', 'transfer'] }, min_usd: { type: 'number', description: 'Minimum trade size in USD (default 10000)' } }, additionalProperties: false },
+  },
+  {
+    name: 'get_portfolio',
+    description: 'The tokenized stocks a wallet holds on Robinhood Chain mainnet, valued live, plus copycat tokens it holds and its other tokens.',
+    input_schema: { type: 'object', properties: { address: { type: 'string', description: 'Wallet address, 0x + 40 hex' } }, required: ['address'], additionalProperties: false },
+  },
+  {
+    name: 'get_leaderboard',
+    description: 'The largest tokenized-stock portfolios on Robinhood Chain (individual wallets, contracts excluded), ranked by live value, with their biggest position.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'get_network_pulse',
+    description: 'Robinhood Chain today in one report: block, block time, TPS, 24h transactions, cost to send ETH, TVL, DEX volume, fees and stablecoins with day-over-day change, stock-token totals and whale activity.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'get_aeon_token',
+    description: "Aeon Network's own token AE (launched on Pons): contract, supply, holders, top holders with labels, burned share, the creator wallet's balance and the holder perks.",
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+);
+const TOOL_LABEL = { get_network_overview: 'Reading network state', get_block: 'Opening block', get_transaction: 'Decoding transaction', get_address: 'Inspecting address', get_ecosystem: 'Loading ecosystem data', get_stock_tokens: 'Loading tokenized stocks', verify_token: 'Verifying token', scan_token: 'Scanning token contract', get_whales: 'Reading whale trades', get_portfolio: 'Opening portfolio', get_leaderboard: 'Loading leaderboard', get_network_pulse: 'Taking the network pulse', get_aeon_token: 'Reading the AE token' };
+const NO_NET = ['get_ecosystem', 'get_stock_tokens', 'verify_token', 'get_whales', 'get_portfolio', 'get_leaderboard', 'get_network_pulse', 'get_aeon_token'];
 
 const ADDR = /^0x[0-9a-fA-F]{40}$/;
 const HASH = /^0x[0-9a-fA-F]{64}$/;
@@ -70,11 +110,13 @@ const HASH = /^0x[0-9a-fA-F]{64}$/;
 function validate(name, input) {
   if (!input || typeof input !== 'object') return 'input must be an object';
   if (!TOOL_LABEL[name]) return 'unknown tool';
-  if (!['get_ecosystem', 'get_stock_tokens', 'verify_token'].includes(name) && !NETWORKS[input.network]) return 'network must be "mainnet" or "testnet"';
+  if (!NO_NET.includes(name) && !NETWORKS[input.network]) return 'network must be "mainnet" or "testnet"';
   if (name === 'verify_token' && !(typeof input.query === 'string' && input.query.trim() && input.query.length <= 40)) return 'query must be a short ticker or name';
   if (name === 'get_block' && !(input.block === 'latest' || /^\d+$/.test(String(input.block)))) return 'block must be digits or "latest"';
   if (name === 'get_transaction' && !HASH.test(input.hash || '')) return 'hash must be 0x + 64 hex chars';
-  if (name === 'get_address' && !ADDR.test(input.address || '')) return 'address must be 0x + 40 hex chars';
+  if (['get_address', 'scan_token', 'get_portfolio'].includes(name) && !ADDR.test(input.address || '')) return 'address must be 0x + 40 hex chars';
+  if (name === 'get_whales' && input.symbol != null && !/^[A-Za-z0-9.]{1,12}$/.test(String(input.symbol))) return 'symbol must be a ticker';
+  if (name === 'get_whales' && input.min_usd != null && !(Number(input.min_usd) >= 0)) return 'min_usd must be a positive number';
   return null;
 }
 
@@ -131,6 +173,35 @@ async function runTool(name, input) {
       const { value } = await eco.verifyToken('mainnet', input.query);
       return { ...value, lookalikes: value.lookalikes.slice(0, 15) };
     }
+    case 'scan_token': {
+      const { scan } = await import('./scanner.js');
+      const r = await scan(input.network, input.address);
+      return { ...r, holders: r.holders ? { ...r.holders, top: r.holders.top.slice(0, 8) } : null, page: `https://getaeon.network/#/scan/${r.token.address}` };
+    }
+    case 'get_whales': {
+      const { whales } = await import('./whales.js');
+      const w = whales({ min: input.min_usd ?? 10_000, symbol: input.symbol || null, side: input.side || null, limit: 15 });
+      return { ...w, symbols: undefined, note: 'USD values use the token price at scan time. "transfer" means tokens moved between wallets without a trade.' };
+    }
+    case 'get_portfolio': {
+      const { portfolio } = await import('./insights.js');
+      const p = await portfolio('mainnet', input.address);
+      return { ...p, others: p.others.slice(0, 10), page: `https://getaeon.network/#/portfolio/${input.address}` };
+    }
+    case 'get_leaderboard': {
+      const { leaderboard } = await import('./leaderboard.js');
+      const b = leaderboard();
+      return { ...b, rows: (b.rows || []).slice(0, 20).map(({ rank, address, valueUsd, positions, top, symbols }) => ({ rank, address, valueUsd, positions, top, symbols })) };
+    }
+    case 'get_network_pulse': {
+      const { pulse } = await import('./pulse.js');
+      return (await pulse()).value;
+    }
+    case 'get_aeon_token': {
+      const { tokenInfo } = await import('./aeon.js');
+      const t = (await tokenInfo()).value;
+      return { ...t, top: t.top.slice(0, 10), page: 'https://getaeon.network/#/ae' };
+    }
     case 'get_ecosystem': {
       const [sum, prots, dex, fee, toks] = await Promise.allSettled([eco.chainSummary('mainnet'), eco.protocols('mainnet'), eco.dexVolume('mainnet'), eco.fees('mainnet'), eco.topTokens('mainnet')]);
       const v = (r) => val(r)?.value ?? (Array.isArray(val(r)) ? val(r) : null);
@@ -169,15 +240,42 @@ export async function tokenUniverse(net) {
   return [...out].slice(0, 50);
 }
 
+let stepId = 0;
+// One line per finished step, shown in the agent timeline.
+const usd = (n) => '$' + Math.round(n || 0).toLocaleString('en-US');
+function summarize(name, o) {
+  try {
+    switch (name) {
+      case 'scan_token': return `${o.token.symbol}: grade ${o.grade} (${o.score}/100)`;
+      case 'get_whales': return `${o.summary.trades24h} whale trades in 24h`;
+      case 'get_portfolio': return `${o.holdings.length} stock positions, ${usd(o.stocksValueUsd)}`;
+      case 'get_leaderboard': return o.rows?.length ? `top wallet ${usd(o.rows[0].valueUsd)}` : 'ranking is being built';
+      case 'get_network_pulse': return o.headline;
+      case 'get_aeon_token': return `${o.holders ?? '?'} holders, ${o.burnedPct.toFixed(1)}% burned`;
+      case 'get_transaction': return o.status ? `status ${o.status}` : 'decoded';
+      case 'get_block': return `${o.transactionsShown ?? 0} transactions`;
+      case 'get_address': return o.isContract ? 'contract' : 'wallet';
+      default: return 'done';
+    }
+  } catch {
+    return 'done';
+  }
+}
+
 async function execute(call, emit) {
   const bad = validate(call.name, call.input);
   if (bad) return { error: true, content: `Invalid input: ${bad}` };
+  const id = ++stepId;
+  const t0 = Date.now();
+  const step = { id, name: call.name, input: call.input, label: TOOL_LABEL[call.name] };
   emit('status', { text: `${TOOL_LABEL[call.name]}…` });
+  emit('step', { ...step, state: 'run' });
   try {
     const out = await runTool(call.name, call.input);
-    emit('tool', { name: call.name, input: call.input });
+    emit('step', { ...step, state: 'ok', ms: Date.now() - t0, summary: summarize(call.name, out) });
     return { error: false, content: JSON.stringify(out).slice(0, 60_000) };
   } catch (err) {
+    emit('step', { ...step, state: 'err', ms: Date.now() - t0, summary: String(err.message).slice(0, 120) });
     return { error: true, content: err.message };
   }
 }

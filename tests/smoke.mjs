@@ -94,6 +94,13 @@ await check('network pulse', async () => {
   const d = (await get('/api/network/mainnet/pulse')).body;
   assert(d.headline && d.network?.block > 0 && d.economy, 'bad shape');
 });
+await check('token safety scan (AE)', async () => {
+  const d = (await get('/api/network/mainnet/scan/0xb4fc414ac279bb3136e3cf7ec5084846af3bb459')).body;
+  assert(d.score >= 0 && d.score <= 100 && /^[A-F]$/.test(d.grade) && d.checks?.length, 'bad shape');
+});
+await check('scan rejects a wallet address', () => get(`/api/network/mainnet/scan/0x000000000000000000000000000000000000a301`, { status: 404 }));
+await check('scan rejects a bad address', () => get('/api/network/mainnet/scan/0x123', { status: 400 }));
+await check('scanner share page', async () => assert((await get('/scan', { json: false })).body.includes('Token Safety Scanner'), 'no scanner title'));
 await check('address lookup', () => get(`/api/network/mainnet/address/${WETH}`));
 await check('search', () => get(`/api/network/mainnet/lookup?q=${WETH}`));
 for (const p of ['summary', 'protocols', 'tvl', 'dex', 'fees', 'stablecoins']) await check(`ecosystem ${p}`, () => get(`/api/ecosystem/mainnet/${p}`));

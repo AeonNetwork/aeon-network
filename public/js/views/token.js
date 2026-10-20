@@ -44,7 +44,7 @@ function mount(main, addr) {
       ].join(' ');
       $('#tkHead', main).innerHTML = `
         ${t.icon ? `<img class="logo" src="${esc(icon(t.icon))}" data-sym="${esc(t.symbol || '?')}" alt="" style="width:52px;height:52px;border-radius:50%">` : `<span class="logo ph" style="width:52px;height:52px;font-size:14px">${esc((t.symbol || '?').slice(0, 3))}</span>`}
-        <div><div class="kicker">${esc(net().name)} · Token profile</div><h1>${esc(t.symbol || '?')} <span class="dim" style="font-weight:400">${esc(t.official && t.stock ? t.stock.name : t.name || '')}</span></h1><div class="row wrap" style="gap:6px;margin-top:8px">${badges}</div></div>`;
+        <div><div class="kicker">${esc(net().name)} · Token profile</div><h1>${esc(t.symbol || '?')} <span class="dim" style="font-weight:400">${esc(t.official && t.stock ? t.stock.name : t.name || '')}</span></h1><div class="row wrap" style="gap:6px;margin-top:8px">${badges}<a class="btn btn-sm" href="#/scan/${esc(addr)}">Run safety scan</a></div></div>`;
       document.title = `${t.symbol || 'Token'} · Aeon Network`;
 
       const body = $('#tkBody', main);

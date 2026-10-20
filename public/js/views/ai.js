@@ -4,15 +4,39 @@ import { getPass } from './ae.js';
 import { startOrb } from '../orb.js';
 
 const PROMPTS = [
+  'Scan the AE token for risks and explain what you find.',
+  'What are the whales buying and selling today? Open the biggest wallet.',
+  'Give me today\'s network pulse in five bullets.',
+  'Who holds the largest stock portfolio, and what is in it?',
   'What is happening on Robinhood Chain right now?',
   'Explain Robinhood Chain to a beginner: what it is and how it differs from Ethereum.',
-  'Which protocols hold the most value on Robinhood Chain?',
-  'Which tokenized stocks have the most holders on Robinhood Chain?',
   'How do I know a TSLA token is the official Robinhood one?',
-  'How much does a transaction cost right now?',
 ];
 
-const TOOL_NAMES = { get_network_overview: 'network state', get_block: 'block', get_transaction: 'transaction', get_address: 'address', get_ecosystem: 'ecosystem', get_stock_tokens: 'stock tokens', verify_token: 'token check' };
+const TOOL_NAMES = { get_network_overview: 'network state', get_block: 'block', get_transaction: 'transaction', get_address: 'address', get_ecosystem: 'ecosystem', get_stock_tokens: 'stock tokens', verify_token: 'token check', scan_token: 'safety scan', get_whales: 'whales', get_portfolio: 'portfolio', get_leaderboard: 'leaderboard', get_network_pulse: 'network pulse', get_aeon_token: 'AE token' };
+// Where a step's result lives on the site, so the user can open it.
+const STEP_PAGE = {
+  scan_token: (i) => `#/scan/${i.address}`,
+  get_portfolio: (i) => `#/portfolio/${i.address}`,
+  get_whales: () => '#/whales',
+  get_leaderboard: () => '#/leaderboard',
+  get_network_pulse: () => '#/pulse',
+  get_aeon_token: () => '#/ae',
+  get_transaction: (i) => `#/explorer/tx/${i.hash}`,
+  get_address: (i) => `#/explorer/address/${i.address}`,
+  get_block: (i) => (i.block === 'latest' ? null : `#/explorer/block/${i.block}`),
+};
+const target = (i = {}) => (i.hash ? ' ' + short(i.hash, 8) : i.address ? ' ' + short(i.address, 6) : i.block ? ' #' + i.block : i.query ? ' ' + i.query : i.symbol ? ' ' + i.symbol : '');
+const MARK = { run: '<span class="ag-spin"></span>', ok: '✓', err: '✕' };
+const steps = (list) =>
+  list.length
+    ? `<div class="agent"><div class="agent-head">Agent · ${list.length} step${list.length > 1 ? 's' : ''}</div>${list
+        .map((st) => {
+          const href = STEP_PAGE[st.name]?.(st.input || {});
+          return `<div class="ag-step ag-${st.state || 'ok'}"><span class="ag-mark">${MARK[st.state || 'ok']}</span><span class="ag-name">${esc(st.label || TOOL_NAMES[st.name] || st.name)}${esc(target(st.input))}</span><span class="ag-sum">${esc(st.summary || (st.state === 'run' ? 'working…' : ''))}</span><span class="ag-meta">${st.ms >= 100 ? (st.ms / 1000).toFixed(1) + 's' : ''}${href && st.state === 'ok' ? ` <a class="link" href="${esc(href)}">open ↗</a>` : ''}</span></div>`;
+        })
+        .join('')}</div>`
+    : '';
 const chip = (t) => {
   const i = t.input || {};
   const target = i.hash ? ' ' + short(i.hash, 8) : i.address ? ' ' + short(i.address, 6) : i.block ? ' #' + i.block : i.query ? ' ' + i.query : '';
@@ -28,7 +52,7 @@ export function render(main) {
   let orb = null;
 
   main.innerHTML = `
-  <div class="page-head"><div><div class="kicker">${esc(net().name)} · Network AI</div><h1>Ask the network</h1></div><span class="dim" style="font-size:12px">${state.config.ai.providers.length ? 'Models: ' + state.config.ai.providers.map((p) => esc(p.name)).join(' → ') : 'Reads blocks, transactions, addresses and ecosystem data live'}</span></div>
+  <div class="page-head"><div><div class="kicker">${esc(net().name)} · AI Agent</div><h1>Aeon AI Agent</h1></div><span class="dim" style="font-size:12px">${state.config.ai.providers.length ? 'Models: ' + state.config.ai.providers.map((p) => esc(p.name)).join(' → ') : 'Scans tokens, follows whales, opens wallets and reads the chain live'}</span></div>
   <div class="ai">
     <div class="box ai-side reveal">
       <div class="box-head">Try asking</div>
@@ -49,13 +73,13 @@ export function render(main) {
   const empty = () => `
     <div class="empty-ai">
       ${enabled ? '<div class="orb" aria-hidden="true"></div>' : ''}
-      <h3>${enabled ? 'Ask anything about Robinhood Chain' : 'Network AI is not enabled yet'}</h3>
-      <p>${enabled ? 'Paste a transaction hash, an address or a block number and the AI will look it up on-chain and explain it in plain language.' : 'Set <code>GEMINI_API_KEY</code>, <code>OPENROUTER_API_KEY</code> or <code>ANTHROPIC_API_KEY</code> in the server’s <code>.env</code> file and restart the server.'}</p></div>`;
+      <h3>${enabled ? 'An agent that works the chain for you' : 'Network AI is not enabled yet'}</h3>
+      <p>${enabled ? 'Ask it to scan a token, follow the whales, open a wallet or explain a transaction. It runs the checks itself, step by step, and shows its work.' : 'Set <code>GEMINI_API_KEY</code>, <code>OPENROUTER_API_KEY</code> or <code>ANTHROPIC_API_KEY</code> in the server’s <code>.env</code> file and restart the server.'}</p></div>`;
 
   const bubble = (m) =>
     m.role === 'user'
       ? `<div class="msg user">${esc(m.content)}</div>`
-      : `<div class="msg bot"><div class="av"></div><div>${m.tools?.length ? `<div class="tools-used">${m.tools.map(chip).join('')}</div>` : ''}<div class="md">${markdown(m.content)}</div>${m.by ? `<div class="dim" style="font-size:11px;margin-top:6px">answered by ${esc(m.by)}</div>` : ''}${m.sources?.length ? `<div class="sources">${m.sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.title)}">↗ ${esc(s.title)}</a>`).join('')}</div>` : ''}</div></div>`;
+      : `<div class="msg bot"><div class="av"></div><div>${m.steps?.length ? steps(m.steps) : m.tools?.length ? `<div class="tools-used">${m.tools.map(chip).join('')}</div>` : ''}<div class="md">${markdown(m.content)}</div>${m.by ? `<div class="dim" style="font-size:11px;margin-top:6px">answered by ${esc(m.by)}</div>` : ''}${m.sources?.length ? `<div class="sources">${m.sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.title)}">↗ ${esc(s.title)}</a>`).join('')}</div>` : ''}</div></div>`;
   const paint = () => {
     orb?.destroy();
     orb = null;
@@ -93,6 +117,7 @@ export function render(main) {
     let full = '';
     const sources = [];
     const tools = [];
+    const agentSteps = [];
     let by = '';
     try {
       const res = await fetch('/api/ai/chat', {
@@ -130,7 +155,14 @@ export function render(main) {
             }
             raf ||= requestAnimationFrame(repaint);
           } else if (ev.type === 'status') status.textContent = ev.text;
-          else if (ev.type === 'tool') {
+          else if (ev.type === 'step') {
+            const i = agentSteps.findIndex((x) => x.id === ev.id);
+            const st = { id: ev.id, name: ev.name, input: ev.input, label: ev.label, state: ev.state, ms: ev.ms, summary: ev.summary };
+            if (i >= 0) agentSteps[i] = st;
+            else agentSteps.push(st);
+            chips.innerHTML = steps(agentSteps);
+            if (log.scrollHeight - log.scrollTop - log.clientHeight < 200) log.scrollTop = log.scrollHeight;
+          } else if (ev.type === 'tool') {
             tools.push({ name: ev.name, input: ev.input });
             chips.innerHTML = tools.map(chip).join('');
           } else if (ev.type === 'provider') {
@@ -143,10 +175,10 @@ export function render(main) {
         }
       }
       if (!full.trim()) throw new Error('No response.');
-      history.push({ role: 'assistant', content: full.trim(), sources, tools, by });
+      history.push({ role: 'assistant', content: full.trim(), sources, tools, steps: agentSteps, by });
     } catch (err) {
       if (err.name !== 'AbortError') toast(err.message, 'err');
-      if (full.trim()) history.push({ role: 'assistant', content: full.trim() + (err.name === 'AbortError' ? '\n\n_(stopped)_' : ''), sources, tools });
+      if (full.trim()) history.push({ role: 'assistant', content: full.trim() + (err.name === 'AbortError' ? '\n\n_(stopped)_' : ''), sources, tools, steps: agentSteps });
       else history.pop();
     } finally {
       ctrl = null;

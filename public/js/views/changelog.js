@@ -3,6 +3,22 @@ import { esc } from '../core.js';
 
 export const RELEASES = [
   {
+    date: 'Oct 22, 2026',
+    tag: 'Major update',
+    title: 'Token Safety Scanner and the Aeon AI Agent',
+    items: [
+      'Token Safety Scanner: paste any token on Robinhood Chain and get a 0-100 score and an A-F grade',
+      'Finds mint, pause, blacklist, tax and limit switches in the bytecode, including behind a proxy',
+      'Live honeypot test: simulates a real holder sending the token',
+      'Holder spread rebuilt from every transfer the token ever made, with pools and curves kept apart from wallets',
+      'Flags copycats of official Robinhood stock tokens; liquidity from DEX Screener',
+      'Aeon AI is now an agent: it scans tokens, follows whales, opens wallets and reads the leaderboard, Pulse and AE on its own',
+      'Every step the agent takes is shown live, with a link to open its result',
+      'Pages keep working when an explorer provider is down: saved data plus on-chain fallbacks',
+    ],
+    link: ['#/scan', 'Open the scanner'],
+  },
+  {
     date: 'Oct 21, 2026',
     tag: 'Big update',
     title: 'Network Pulse, and a faster, sturdier engine',

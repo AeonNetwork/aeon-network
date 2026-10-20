@@ -63,11 +63,11 @@ export function tokenMetadata(net, token) {
 }
 
 // ERC-20 transfers of several tokens since a block, newest first, with block timestamps.
-export async function transfers(net, { contracts, fromBlock, toAddress, fromAddress, max = 1000 }) {
+export async function transfers(net, { contracts, fromBlock, toAddress, fromAddress, max = 1000, order = 'desc', pages = 5 }) {
   const out = [];
   let pageKey;
-  for (let i = 0; i < 5 && out.length < max; i++) {
-    const params = { category: ['erc20'], withMetadata: true, excludeZeroValue: true, order: 'desc', maxCount: '0x' + Math.min(1000, max - out.length).toString(16) };
+  for (let i = 0; i < pages && out.length < max; i++) {
+    const params = { category: ['erc20'], withMetadata: true, excludeZeroValue: true, order, maxCount: '0x' + Math.min(1000, max - out.length).toString(16) };
     if (contracts) params.contractAddresses = contracts;
     if (fromBlock != null) params.fromBlock = '0x' + Number(fromBlock).toString(16);
     if (toAddress) params.toAddress = toAddress;
@@ -78,6 +78,7 @@ export async function transfers(net, { contracts, fromBlock, toAddress, fromAddr
     pageKey = r.pageKey;
     if (!pageKey) break;
   }
+  out.complete = !pageKey;
   return out;
 }
 
