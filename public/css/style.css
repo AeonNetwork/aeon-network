@@ -410,3 +410,11 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .footer-ca a { color: var(--ink); font-size: 12.5px; word-break: break-all; border-bottom: 1px dotted var(--ink-3); }
 .footer-ca a:hover { border-color: var(--ink); }
 .footer-ca .dim { font-size: 12px; }
+/* Maintenance page */
+.maint { max-width: 640px; margin: 0 auto; min-height: 100vh; display: grid; align-content: center; justify-items: start; gap: 18px; padding: 48px 24px; }
+.maint-mark { width: 44px; height: 40px; }
+.maint h1 { margin: 0; font-size: clamp(36px, 7vw, 56px); line-height: 1; letter-spacing: -0.04em; }
+.maint p { margin: 0; color: var(--ink-2); font-size: 16px; line-height: 1.6; }
+.maint-clock { display: grid; gap: 6px; width: 100%; padding: 18px 20px; border: 1px solid var(--line-strong); }
+.maint-clock b { font-size: clamp(40px, 9vw, 64px); font-weight: 500; letter-spacing: -0.03em; }
+.maint-clock .dim { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }

@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server/index.js",
     "dev": "node --watch --env-file-if-exists=.env server/index.js",
-    "test": "node tests/smoke.mjs"
+    "test": "node tests/smoke.mjs",
+    "maintenance": "node scripts/maintenance.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

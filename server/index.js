@@ -20,6 +20,42 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
+// ---------------- maintenance mode ----------------
+// `npm run maintenance -- 60` writes .maintenance (end time, ms); every page then shows an
+// "updating" notice with a countdown, and the site reopens by itself when the time is up.
+// `npm run maintenance -- off` ends it early.
+const MAINT_FILE = path.join(here, '..', '.maintenance');
+let maint = { at: 0, end: 0 };
+const maintenanceEnd = () => {
+  if (Date.now() - maint.at > 2000) {
+    let end = 0;
+    try {
+      end = Number(readFileSync(MAINT_FILE, 'utf8').trim()) || 0;
+    } catch {}
+    maint = { at: Date.now(), end };
+  }
+  return maint.end > Date.now() ? maint.end : 0;
+};
+const MAINT_ASSETS = /^\/(css\/|img\/|js\/maintenance\.js$|manifest\.webmanifest$|favicon)/;
+app.use((req, res, next) => {
+  const end = maintenanceEnd();
+  if (!end || MAINT_ASSETS.test(req.path)) return next();
+  const retry = String(Math.ceil((end - Date.now()) / 1000));
+  res.set({ 'retry-after': retry, 'cache-control': 'no-store' });
+  if (req.path.startsWith('/api/') || req.path.startsWith('/rpc/')) return res.status(503).json({ error: 'Aeon Network is being updated. Back shortly.', until: new Date(end).toISOString() });
+  const until = new Date(end).toISOString().slice(11, 16);
+  res.status(503).type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Updating · Aeon Network</title><link rel="icon" href="/img/logo.svg" type="image/svg+xml"><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/css/style.css"></head>
+<body data-end="${end}"><main class="maint">
+<span class="brand-mark maint-mark" aria-hidden="true"></span>
+<div class="kicker">Aeon Network · Scheduled update</div>
+<h1>We're upgrading Aeon.</h1>
+<p>The site is offline for about an hour while we move to new infrastructure. Your data and the chain are not affected. This page reopens by itself when we're done.</p>
+<div class="maint-clock"><span class="dim mono">Back in</span><b class="mono" id="left">--:--:--</b><span class="dim mono">around ${until} UTC</span></div>
+<div class="maint-links"><a class="btn" href="https://x.com/getaeon_network" target="_blank" rel="noopener">Updates on X @getaeon_network</a></div>
+</main><script type="module" src="/js/maintenance.js"></script></body></html>`);
+});
+
 // One canonical host: www.getaeon.network -> getaeon.network.
 app.use((req, res, next) => {
   const host = req.get('host') || '';
