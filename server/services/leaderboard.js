@@ -21,9 +21,24 @@ const FILE = path.join(CACHE_DIR, 'leaderboard.json');
 
 let board = null;
 let building = false;
+let retryTimer = null;
+const MIN_COVERAGE = 0.9; // a build that read fewer tokens than this never replaces the board
 try {
   board = JSON.parse(readFileSync(FILE, 'utf8'));
 } catch {}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Blockscout can rate-limit or briefly trip the app's breaker; wait and try again instead of skipping.
+async function patient(fn, tries = 4) {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i >= tries - 1) throw err;
+      await sleep(3000 * (i + 1));
+    }
+  }
+}
 
 const units = (raw, decimals) => {
   try {
@@ -43,7 +58,7 @@ export async function build() {
     let scanned = 0;
     for (const s of stocks) {
       try {
-        const r = await eco.bs(NET, `/tokens/${s.address}/holders`, 20 * 60_000);
+        const r = await patient(() => eco.bs(NET, `/tokens/${s.address}/holders`, 20 * 60_000));
         scanned++;
         for (const h of r.value.items || []) {
           const a = h.address;
@@ -62,7 +77,7 @@ export async function build() {
     const rows = [];
     for (const c of candidates) {
       try {
-        const p = await portfolio(NET, c.address);
+        const p = await patient(() => portfolio(NET, c.address), 3);
         const top = p.holdings[0];
         rows.push({
           address: c.address,
@@ -78,6 +93,15 @@ export async function build() {
       }
     }
     rows.sort((a, b) => b.valueUsd - a.valueUsd);
+    const exact = rows.filter((r) => !r.estimated).length;
+    if (scanned < stocks.length * MIN_COVERAGE || exact < rows.length * MIN_COVERAGE) {
+      // Incomplete data: keep the current ranking and try again soon.
+      console.error(`[leaderboard] incomplete build (${scanned}/${stocks.length} tokens, ${exact}/${rows.length} exact); keeping the previous ranking`);
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(() => build().catch(() => {}), 5 * 60_000);
+      retryTimer.unref?.();
+      return;
+    }
     const prev = new Map((board?.rows || []).map((r, i) => [r.address, i + 1]));
     board = {
       at: Date.now(),
