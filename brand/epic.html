@@ -1,0 +1,299 @@
+<!doctype html>
+<!-- AEON × PONS cinematic film (1920x1080, ≈30 s). Deterministic canvas renderer driven by
+     window.render(t); timed to brand/epic-sound.mjs. Smooth camera, few big moments: no
+     per-beat shake, zoom or strobe. The recorder injects window.PONS (logo data URL). -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;500;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+const c = document.getElementById('c'), x = c.getContext('2d');
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const io = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2);
+const out = (k) => 1 - (1 - k) ** 3;
+const lerp = (a, b, k) => a + (b - a) * k;
+let seed = 777;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+// ---------- assets ----------
+const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'].map((d) => new Path2D(d));
+// Pre-rendered at high resolution so translucent draws never double up where strokes overlap.
+const AE_SPRITE = new OffscreenCanvas(1040, 940);
+{
+  const g = AE_SPRITE.getContext('2d');
+  g.scale(5, 5);
+  g.translate(-96, -106);
+  g.fillStyle = '#fff';
+  AE.forEach((p) => g.fill(p));
+}
+function drawAE(cx, cy, h, alpha = 1, bloom = 0) {
+  if (alpha <= 0) return;
+  const w = (208 / 188) * h;
+  x.save();
+  x.imageSmoothingQuality = 'high';
+  if (bloom > 0) {
+    x.globalAlpha = alpha * bloom;
+    x.shadowColor = '#fff';
+    x.shadowBlur = 90;
+    x.drawImage(AE_SPRITE, cx - w / 2, cy - h / 2, w, h);
+    x.shadowBlur = 30;
+    x.drawImage(AE_SPRITE, cx - w / 2, cy - h / 2, w, h);
+    x.shadowBlur = 0;
+  }
+  x.globalAlpha = alpha;
+  x.drawImage(AE_SPRITE, cx - w / 2, cy - h / 2, w, h);
+  x.restore();
+}
+let pons = null, ponsW = 1, ponsH = 1;
+const ponsReady = new Promise((res) => {
+  const img = new Image();
+  img.onload = () => {
+    const w = img.width, h = img.height;
+    const o = new OffscreenCanvas(w, h), g = o.getContext('2d');
+    g.drawImage(img, 0, 0);
+    const id = g.getImageData(0, 0, w, h), d = id.data;
+    const seen = new Uint8Array(w * h), stack = [];
+    for (let i = 0; i < w; i++) stack.push(i, (h - 1) * w + i);
+    for (let j = 0; j < h; j++) stack.push(j * w, j * w + w - 1);
+    while (stack.length) {
+      const p = stack.pop();
+      if (seen[p] || Math.min(d[p * 4], d[p * 4 + 1], d[p * 4 + 2]) < 222) continue;
+      seen[p] = 1; d[p * 4 + 3] = 0;
+      const px = p % w, py = (p / w) | 0;
+      if (px > 0) stack.push(p - 1);
+      if (px < w - 1) stack.push(p + 1);
+      if (py > 0) stack.push(p - w);
+      if (py < h - 1) stack.push(p + w);
+    }
+    for (let p = 0; p < w * h; p++) if (!seen[p]) {
+      const px = p % w, py = (p / w) | 0;
+      const n = (px > 0 && seen[p - 1]) + (px < w - 1 && seen[p + 1]) + (py > 0 && seen[p - w]) + (py < h - 1 && seen[p + w]);
+      if (n) d[p * 4 + 3] = 255 - n * 55;
+    }
+    g.putImageData(id, 0, 0);
+    let x0 = w, y0 = h, x1 = 0, y1 = 0;
+    for (let p = 0; p < w * h; p++) if (d[p * 4 + 3] > 20) {
+      const px = p % w, py = (p / w) | 0;
+      x0 = Math.min(x0, px); y0 = Math.min(y0, py); x1 = Math.max(x1, px); y1 = Math.max(y1, py);
+    }
+    ponsW = x1 - x0 + 1; ponsH = y1 - y0 + 1;
+    pons = new OffscreenCanvas(ponsW, ponsH);
+    pons.getContext('2d').drawImage(o, x0, y0, ponsW, ponsH, 0, 0, ponsW, ponsH);
+    res();
+  };
+  img.src = window.PONS;
+});
+const sc = new OffscreenCanvas(1200, 1200), sx = sc.getContext('2d');
+function drawPons(cx, cy, h, alpha = 1, shine = -1, blur = 0) {
+  if (!pons || alpha <= 0) return;
+  const w = (ponsW / ponsH) * h;
+  sc.width = Math.ceil(w) + 2; sc.height = Math.ceil(h) + 2;
+  sx.imageSmoothingQuality = 'high';
+  sx.drawImage(pons, 0, 0, w, h);
+  if (shine >= 0 && shine <= 1) {
+    sx.globalCompositeOperation = 'source-atop';
+    const px = -w * 0.8 + shine * w * 2.6;
+    const gr = sx.createLinearGradient(px, 0, px + w * 0.5, h);
+    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    sx.fillStyle = gr; sx.fillRect(0, 0, w, h);
+    sx.globalCompositeOperation = 'source-over';
+  }
+  x.save();
+  x.globalAlpha = alpha;
+  if (blur > 0.3) x.filter = `blur(${blur}px)`;
+  x.drawImage(sc, cx - w / 2, cy - h / 2);
+  x.restore();
+}
+// Text that settles in: tracking closes, blur clears.
+function reveal(str, px, py, t, t0, t1, fadeAt, { size = 64, weight = 700, font = 'Geist', color = '#fff', spacing = 0, from = 40, dur = 1.2 } = {}) {
+  if (t < t0 || t > t1) return;
+  const k = out(span(t, t0, t0 + dur));
+  const a = k * (1 - span(t, fadeAt, t1));
+  if (a <= 0) return;
+  x.save();
+  x.globalAlpha = a;
+  x.font = `${weight} ${size}px "${font}"`;
+  x.letterSpacing = lerp(from, spacing, k) + 'px';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.fillStyle = color;
+  const b = (1 - k) * 14;
+  if (b > 0.3) x.filter = `blur(${b}px)`;
+  x.fillText(str, px, py);
+  x.restore();
+}
+function flare(px, py, strength) {
+  if (strength <= 0.01) return;
+  x.save();
+  x.globalCompositeOperation = 'lighter';
+  const g = x.createLinearGradient(0, 0, W, 0);
+  g.addColorStop(0, 'rgba(255,255,255,0)');
+  g.addColorStop(Math.max(0.01, px / W - 0.25), 'rgba(255,255,255,0)');
+  g.addColorStop(px / W, `rgba(255,255,255,${0.9 * strength})`);
+  g.addColorStop(Math.min(0.99, px / W + 0.25), 'rgba(255,255,255,0)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g;
+  x.fillRect(0, py - 2, W, 4);
+  const r = x.createRadialGradient(px, py, 0, px, py, 420);
+  r.addColorStop(0, `rgba(255,255,255,${0.35 * strength})`);
+  r.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = r;
+  x.fillRect(px - 420, py - 420, 840, 840);
+  x.restore();
+}
+function drawCross(cx, cy, s, k, alpha = 1) {
+  if (k <= 0) return;
+  x.save();
+  x.globalAlpha = alpha;
+  x.strokeStyle = '#fff';
+  x.lineWidth = 4;
+  x.lineCap = 'square';
+  const a = clamp(k * 2), b = clamp(k * 2 - 1);
+  x.beginPath();
+  x.moveTo(cx - s / 2, cy - s / 2); x.lineTo(cx - s / 2 + s * a, cy - s / 2 + s * a);
+  if (b > 0) (x.moveTo(cx + s / 2, cy - s / 2), x.lineTo(cx + s / 2 - s * b, cy - s / 2 + s * b));
+  x.stroke();
+  x.restore();
+}
+
+// ---------- 3D star field ----------
+const S = Array.from({ length: 1700 }, () => ({ x: (rnd() - 0.5) * 6, y: (rnd() - 0.5) * 3.4, z: 0.15 + rnd() * 4, b: 0.35 + rnd() * 0.65 }));
+// camera distance travelled: integral of a speed curve, computed analytically by sampling
+const speed = (t) => 0.18 + 0.9 * Math.exp(-Math.max(0, t - 6) / 0.6) * (t >= 6) + 0.6 * Math.exp(-Math.max(0, t - 12) / 0.6) * (t >= 12) + 3.2 * io(span(t, 18, 19.95)) * (t < 20) + 1.4 * Math.exp(-Math.max(0, t - 20) / 0.8) * (t >= 20);
+const travel = [];
+for (let i = 0, d = 0; i <= 31 * 120; i++) (travel[i] = d), (d += speed(i / 120) / 120);
+const dist = (t) => travel[Math.max(0, Math.min(travel.length - 1, Math.round(t * 120)))];
+function stars(t, alpha) {
+  const d = dist(t), d0 = dist(t - 1 / 30), F = 900;
+  x.save();
+  x.strokeStyle = '#fff';
+  for (const s of S) {
+    const z = ((s.z - d) % 4 + 4) % 4 + 0.08;
+    const z0 = z + (d - d0);
+    const px = CX + (s.x / z) * F * 0.25, py = CY + (s.y / z) * F * 0.25;
+    if (px < -50 || px > W + 50 || py < -50 || py > H + 50) continue;
+    const a = alpha * s.b * clamp(1.4 - z / 3);
+    const pz = CX + (s.x / z0) * F * 0.25, qz = CY + (s.y / z0) * F * 0.25;
+    x.globalAlpha = a;
+    x.lineWidth = Math.min(3, 1.4 / z);
+    x.beginPath(); x.moveTo(pz, qz); x.lineTo(px + 0.01, py); x.stroke();
+  }
+  x.restore();
+}
+
+// ---------- frame ----------
+window.render = (t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.globalAlpha = 1;
+  x.filter = 'none';
+  x.fillStyle = '#000';
+  x.fillRect(0, 0, W, H);
+
+  // slow cinematic push-in per act
+  const push = t < 6 ? lerp(1, 1.04, t / 6) : t < 12 ? lerp(1.0, 1.05, (t - 6) / 6) : t < 18 ? lerp(1, 1.04, (t - 12) / 6) : t < 20 ? lerp(1.04, 1.12, io(span(t, 18, 20))) : t < 26 ? lerp(1, 1.06, (t - 20) / 6) : 1;
+  x.translate(CX, CY); x.scale(push, push); x.translate(-CX, -CY);
+
+  const blackout = (t >= 5.85 && t < 6) || (t >= 19.9 && t < 20) || (t >= 26.1 && t < 26.6);
+  if (!blackout) stars(t, t < 1.5 ? t / 1.5 : t >= 26.6 ? 0.4 : t >= 20 ? 0.7 : 0.9);
+
+  // 1 · 0–6
+  reveal('MARKETS ARE MOVING ON-CHAIN.', CX, CY, t, 0.7, 3.4, 3.0, { size: 70, weight: 700, spacing: -1 });
+  reveal('SOMEONE HAS TO SEE IT ALL.', CX, CY, t, 3.5, 5.85, 5.45, { size: 70, weight: 700, spacing: -1 });
+
+  // 2 · 6–12: Æ out of the light
+  if (t >= 6 && t < 18) {
+    const k = span(t, 6, 6.6);
+    const ax = t < 12 ? CX : lerp(CX, 620, io(span(t, 12, 14)));
+    const bloom = 1 - 0.75 * out(span(t, 6, 8.2));
+    const dim = t >= 17.2 ? 1 - 0.75 * span(t, 17.2, 18) : 1;
+    drawAE(ax, CY - 40, 340 * lerp(1.12, 1, out(span(t, 6, 8.5))), k * dim, bloom);
+    reveal('AEON NETWORK', ax, CY + 210, t, 7.0, 11.9, 11.5, { size: 34, weight: 600, font: 'Geist Mono', spacing: 20, from: 70 });
+    reveal('THE LIVE HUB FOR ROBINHOOD CHAIN', CX, CY + 275, t, 8.6, 11.9, 11.4, { size: 22, weight: 500, font: 'Geist Mono', spacing: 9, color: '#9a9a9a', from: 30 });
+  }
+  flare(CX, CY - 40, Math.exp(-Math.max(0, t - 6) / 0.7) * (t >= 6 && t < 12));
+
+  // 3 · 12–18: Pons arrives, the × draws itself
+  if (t >= 12 && t < 18) {
+    const k = out(span(t, 12.2, 13.4));
+    const dim = t >= 17.2 ? 1 - 0.75 * span(t, 17.2, 18) : 1;
+    drawPons(1300, CY - 40, 380 * lerp(1.1, 1, k), k * dim, span(t, 12.9, 14.1), (1 - k) * 16);
+    drawCross(CX + 0, CY - 40, 74, span(t, 14, 14.7), dim);
+    reveal('AEON', 620, CY + 210, t, 13.4, 17.9, 17.2, { size: 30, weight: 600, font: 'Geist Mono', spacing: 18, from: 60 });
+    reveal('PONS', 1300, CY + 210, t, 13.6, 17.9, 17.2, { size: 30, weight: 600, font: 'Geist Mono', spacing: 18, from: 60 });
+    reveal("BUILT FOR WHAT'S NEXT.", CX, CY + 300, t, 15.0, 17.9, 17.3, { size: 46, weight: 700, spacing: -0.5, from: 24 });
+  }
+  flare(1300, CY - 40, 0.6 * Math.exp(-Math.max(0, t - 12.3) / 0.8) * (t >= 12.3 && t < 18));
+  flare(CX, CY - 40, 0.45 * Math.exp(-Math.max(0, t - 14.4) / 0.5) * (t >= 14.4 && t < 18));
+
+  // 4 · 18–20: light gathers
+  if (t >= 18 && t < 19.9) {
+    const k = io(span(t, 18, 19.9));
+    const r = x.createRadialGradient(CX, CY - 40, 0, CX, CY - 40, 200 + 700 * k);
+    r.addColorStop(0, `rgba(255,255,255,${0.15 + 0.6 * k})`);
+    r.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = r; x.fillRect(0, 0, W, H);
+  }
+
+  // 5 · 20–26: AEON × PONS
+  if (t >= 20 && t < 26.1) {
+    const k = out(span(t, 20, 21));
+    const fade = 1 - span(t, 25.8, 26.1);
+    // slow rays behind
+    x.save();
+    x.translate(CX, CY - 60);
+    x.rotate(t * 0.04);
+    x.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 12; i++) {
+      x.rotate((Math.PI * 2) / 12);
+      const g = x.createLinearGradient(0, 0, 1100, 0);
+      g.addColorStop(0, `rgba(255,255,255,${0.022 * fade})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = g;
+      x.beginPath(); x.moveTo(0, 0); x.lineTo(1100, -110); x.lineTo(1100, 110); x.closePath(); x.fill();
+    }
+    x.restore();
+    drawAE(640, CY - 80, 330, k * fade, 1 - 0.7 * out(span(t, 20, 22.5)));
+    drawPons(1280, CY - 80, 360, k * fade, span(t, 20.6, 21.8));
+    drawCross(CX, CY - 80, 70, span(t, 20.4, 20.9), fade);
+    reveal('AEON × PONS', CX, CY + 230, t, 20.5, 26.1, 25.8, { size: 128, weight: 900, spacing: -3, from: 40, dur: 1.6 });
+  }
+  flare(CX, CY - 80, 1.1 * Math.exp(-Math.max(0, t - 20) / 0.9) * (t >= 20 && t < 26));
+  // the single white bloom of the film
+  if (t >= 20 && t < 20.6) (x.fillStyle = `rgba(255,255,255,${0.85 * (1 - span(t, 20, 20.6)) ** 2})`), x.fillRect(0, 0, W, H);
+
+  // 6 · 26.6–30.4: sting
+  if (t >= 26.6) {
+    const k = out(span(t, 26.6, 27.6));
+    const fade = 1 - span(t, 29.6, 30.4);
+    drawAE(820, CY - 60, 150, k * fade, 0.4 * (1 - k));
+    drawCross(CX, CY - 60, 36, span(t, 26.8, 27.2), fade);
+    drawPons(1100, CY - 60, 164, k * fade);
+    reveal('getaeon.network', CX, CY + 80, t, 27.3, 30.4, 29.6, { size: 30, weight: 500, font: 'Geist Mono', spacing: 6, color: '#bdbdbd', from: 30 });
+    flare(CX, CY - 60, 0.5 * Math.exp(-Math.max(0, t - 26.6) / 0.6));
+  }
+
+  // ---------- lens: grain, vignette, letterbox ----------
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.globalAlpha = 1;
+  x.filter = 'none';
+  for (let i = 0; i < 500; i++) {
+    x.fillStyle = `rgba(255,255,255,${0.035 * rnd()})`;
+    x.fillRect(rnd() * W, rnd() * H, 1.5, 1.5);
+  }
+  const v = x.createRadialGradient(CX, CY, H * 0.3, CX, CY, H * 0.95);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.8)');
+  x.fillStyle = v; x.fillRect(0, 0, W, H);
+  const bar = 132 * out(span(t, 0, 1.2));
+  x.fillStyle = '#000';
+  x.fillRect(0, 0, W, bar); x.fillRect(0, H - bar, W, bar);
+};
+const fonts = ['300 100px Geist', '500 100px Geist', '700 100px Geist', '800 100px Geist', '900 100px Geist', '400 100px "Geist Mono"', '500 100px "Geist Mono"', '600 100px "Geist Mono"'].map((f) => document.fonts.load(f));
+Promise.all([...fonts, ponsReady]).then(() => document.fonts.ready).then(() => (window.__ready = true));
+</script>
+</body>
+</html>
