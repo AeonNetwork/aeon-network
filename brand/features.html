@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- Feature overview image, 1600x900 (16:9). Four cards, each with a real crop of the live site.
+     window.IMGS = { home, portfolio, ai, stocks } data URLs. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255,255,255,0.14); --line-strong: rgba(255,255,255,0.32); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, sans-serif; -webkit-font-smoothing: antialiased; }
+  .frame { position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(70% 70% at 50% 45%, #141414 0%, #050505 60%, #000 100%); padding: 56px 64px; }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 20px; height: 20px; border: 0 solid var(--ink); }
+  .ticks::before { left: 26px; top: 26px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 26px; bottom: 26px; border-bottom-width: 3px; border-right-width: 3px; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 26px; }
+  .brand { display: flex; align-items: center; gap: 11px; font: 600 15px 'Geist Mono', monospace; letter-spacing: 0.2em; margin-bottom: 14px; }
+  .brand span { color: var(--ink-3); }
+  .brand svg { width: 28px; height: 25px; }
+  h1 { margin: 0; font-size: 62px; line-height: 0.95; font-weight: 800; letter-spacing: -0.05em; }
+  h1 span { color: var(--ink-3); }
+  .url { font: 600 18px 'Geist Mono', monospace; background: var(--ink); color: #000; padding: 10px 16px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .card { position: relative; border: 1px solid var(--line-strong); background: #070707; height: 330px; display: grid; grid-template-rows: 1fr auto; overflow: hidden; }
+  .card::before, .card::after { content: ''; position: absolute; width: 14px; height: 14px; border: 0 solid var(--ink); z-index: 2; }
+  .card::before { left: -1px; top: -1px; border-top-width: 2px; border-left-width: 2px; }
+  .card::after { right: -1px; bottom: -1px; border-bottom-width: 2px; border-right-width: 2px; }
+  .shot { position: relative; overflow: hidden; border-bottom: 1px solid var(--line); }
+  .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .shot::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(7,7,7,0.9)); }
+  .cap { display: flex; align-items: baseline; gap: 16px; padding: 14px 20px 16px; }
+  .cap .n { font: 600 14px 'Geist Mono', monospace; color: var(--ink-3); letter-spacing: 0.1em; }
+  .cap b { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; }
+  .cap span { font-size: 17px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="frame ticks">
+  <div class="head">
+    <div>
+      <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
+      <h1>One hub for Robinhood Chain. <span>All live.</span></h1>
+    </div>
+    <div class="url">getaeon.network</div>
+  </div>
+  <div class="grid">
+    <div class="card"><div class="shot"><img id="i-home" style="object-position: 0 0" /></div><div class="cap"><i class="n">01</i><b>Live network</b><span>Every block, as it happens</span></div></div>
+    <div class="card"><div class="shot"><img id="i-portfolio" style="object-position: 0 20%" /></div><div class="cap"><i class="n">02</i><b>Portfolio</b><span>Your stocks, valued live</span></div></div>
+    <div class="card"><div class="shot"><img id="i-stocks" style="object-position: 0 0" /></div><div class="cap"><i class="n">03</i><b>Stock check</b><span>Real token or copycat</span></div></div>
+    <div class="card"><div class="shot"><img id="i-ai" style="object-position: 0 0" /></div><div class="cap"><i class="n">04</i><b>Network AI</b><span>Answers from the chain</span></div></div>
+  </div>
+</div>
+<script>
+  const ids = Object.keys(window.IMGS);
+  Promise.all(ids.map((k) => new Promise((res) => { const el = document.getElementById('i-' + k); el.onload = res; el.src = window.IMGS[k]; }))).then(() => (window.__ready = true));
+</script>
+</body>
+</html>
