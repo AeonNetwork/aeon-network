@@ -1,0 +1,239 @@
+<!doctype html>
+<!-- Intro video composition (1920x1080, ~31 s). Rendered frame by frame by a recorder
+     that serves this page at http://localhost:3000/__intro.html, injects real chain data
+     as window.DATA and drives a virtual clock, so the site's own ring.js and orb.js
+     animations play back perfectly smoothly. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+<style>
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+  .stage { position: absolute; inset: 0; overflow: hidden; }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .mono { font-family: 'Geist Mono', monospace; }
+  .kick { font: 600 20px 'Geist Mono', monospace; letter-spacing: 0.24em; color: var(--ink-3); text-transform: uppercase; }
+  .big { font-weight: 800; letter-spacing: -0.05em; line-height: 0.95; margin: 0; }
+  .dim { color: var(--ink-3); }
+  .stamp { position: absolute; right: 90px; bottom: 44px; font: 500 15px 'Geist Mono', monospace; letter-spacing: 0.1em; color: var(--ink-3); z-index: 10; }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 22px; height: 22px; border: 0 solid var(--ink); z-index: 10; }
+  .ticks::before { left: 36px; top: 36px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 36px; bottom: 36px; border-bottom-width: 3px; border-right-width: 3px; }
+
+  /* 1 · logo */
+  #logoCanvas { position: absolute; inset: 0; }
+  #s1 .word { position: absolute; left: 0; right: 0; top: 700px; text-align: center; font: 600 34px 'Geist Mono', monospace; letter-spacing: 0.42em; }
+  #s1 .word span { color: var(--ink-3); }
+
+  /* 2 · ring */
+  #ringBox { position: absolute; inset: 0; }
+  #ringBox .ring-label { font-size: 15px; padding: 5px 10px; }
+  #s2 .copy { position: absolute; left: 120px; top: 230px; display: grid; gap: 26px; }
+  #s2 .block { font: 500 150px 'Geist Mono', monospace; letter-spacing: -0.05em; line-height: 1; }
+  #s2 h1 { font-size: 84px; }
+
+  /* 3 · stocks */
+  #s3 .copy { position: absolute; left: 120px; top: 150px; display: grid; gap: 20px; }
+  #s3 h1 { font-size: 88px; }
+  #s3 .rows { position: absolute; left: 120px; right: 120px; top: 470px; border-top: 1px solid var(--line); }
+  #s3 .row { display: grid; grid-template-columns: 70px 120px 1fr 260px 180px 300px; align-items: center; height: 74px; border-bottom: 1px solid var(--line); font-size: 26px; }
+  #s3 .row .ph { width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line-strong); display: grid; place-items: center; font: 600 15px 'Geist Mono', monospace; }
+  #s3 .sym { font: 600 26px 'Geist Mono', monospace; }
+  #s3 .num { font-family: 'Geist Mono', monospace; text-align: right; }
+  #s3 .ok { justify-self: end; font: 500 17px 'Geist Mono', monospace; border: 1px solid var(--line-strong); padding: 6px 12px; }
+
+  /* 4 · AI */
+  #orbBox { position: absolute; left: 560px; top: 215px; width: 800px; height: 520px; }
+  #s4 .copy { position: absolute; left: 0; right: 0; top: 96px; text-align: center; }
+  #s4 h1 { font-size: 88px; }
+  #s4 .ask { position: absolute; left: 360px; right: 360px; top: 760px; border: 1px solid var(--line-strong); padding: 26px 30px; font-size: 30px; min-height: 92px; background: rgba(0,0,0,0.6); }
+  #s4 .caret { display: inline-block; width: 14px; height: 32px; background: var(--ink); vertical-align: -5px; margin-left: 4px; }
+  #s4 .answer { position: absolute; left: 360px; right: 360px; top: 300px; display: grid; gap: 22px; }
+  #s4 .q { justify-self: end; border: 1px solid var(--line-strong); padding: 16px 22px; font-size: 26px; max-width: 900px; }
+  #s4 .a { display: grid; grid-template-columns: 44px 1fr; gap: 20px; font-size: 32px; line-height: 1.45; }
+  #s4 .av { width: 44px; height: 44px; border: 2px solid var(--ink); position: relative; }
+  #s4 .av::after { content: ''; position: absolute; inset: 8px; background: var(--ink); -webkit-mask: url(/img/mark.svg) center / contain no-repeat; mask: url(/img/mark.svg) center / contain no-repeat; }
+  #s4 .chip { display: inline-block; font: 500 17px 'Geist Mono', monospace; border: 1px solid var(--line-strong); padding: 5px 10px; margin-bottom: 12px; color: var(--ink-2); }
+
+  /* 5 · numbers */
+  #s5 .copy { position: absolute; left: 120px; top: 150px; }
+  #s5 h1 { font-size: 88px; }
+  #s5 .grid4 { position: absolute; left: 120px; right: 120px; top: 440px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+  #s5 .cell { position: relative; border: 1px solid var(--line); padding: 30px 34px; }
+  #s5 .cell::before, #s5 .cell::after { content: ''; position: absolute; width: 14px; height: 14px; border: 0 solid var(--ink); }
+  #s5 .cell::before { left: -1px; top: -1px; border-top-width: 2px; border-left-width: 2px; }
+  #s5 .cell::after { right: -1px; bottom: -1px; border-bottom-width: 2px; border-right-width: 2px; }
+  #s5 .cell span { font: 600 18px 'Geist Mono', monospace; letter-spacing: 0.16em; color: var(--ink-3); text-transform: uppercase; }
+  #s5 .cell b { display: block; margin-top: 14px; font: 500 72px 'Geist Mono', monospace; letter-spacing: -0.04em; }
+  #s5 .cell i { font-style: normal; font-size: 20px; color: var(--ink-3); }
+
+  /* 6 · end */
+  #s6 { display: grid; place-content: center; justify-items: center; gap: 30px; text-align: center; }
+  #s6 svg { width: 190px; height: 172px; }
+  #s6 h1 { font-size: 92px; }
+  #s6 .links { display: flex; gap: 18px; font: 600 26px 'Geist Mono', monospace; }
+  #s6 .links b { border: 1px solid var(--line-strong); padding: 12px 20px; font-weight: 600; }
+  #s6 .links b.solid { background: var(--ink); color: #000; }
+</style>
+</head>
+<body>
+<div class="stage ticks">
+  <div class="scene" id="s1"><canvas id="logoCanvas" width="1920" height="1080"></canvas><div class="word" id="word">AEON <span>NETWORK</span></div></div>
+
+  <div class="scene" id="s2">
+    <div id="ringBox"></div>
+    <div class="copy">
+      <div class="kick">Robinhood Chain · Mainnet · Chain ID 4663</div>
+      <div class="block" id="blockNo">#</div>
+      <h1 class="big">Every block.<br /><span class="dim">As it happens.</span></h1>
+    </div>
+  </div>
+
+  <div class="scene" id="s3">
+    <div class="copy"><div class="kick">Tokenized stocks · ERC-8056</div><h1 class="big">Real stocks, on-chain.<br /><span class="dim">Verified, not guessed.</span></h1></div>
+    <div class="rows" id="rows"></div>
+  </div>
+
+  <div class="scene" id="s4">
+    <div id="orbBox"></div>
+    <div class="copy" id="aiTitle"><div class="kick">Network AI</div><h1 class="big">Ask the chain.</h1></div>
+    <div class="ask" id="ask"><span id="typed"></span><span class="caret"></span></div>
+    <div class="answer" id="answer" style="opacity:0"><div class="q" id="qText"></div><div class="a"><div class="av"></div><div><span class="chip">read network state · live</span><div id="aText"></div></div></div></div>
+  </div>
+
+  <div class="scene" id="s5">
+    <div class="copy"><div class="kick">Robinhood Chain, today</div><h1 class="big">The whole network.<br /><span class="dim">In one place.</span></h1></div>
+    <div class="grid4" id="grid4"></div>
+  </div>
+
+  <div class="scene" id="s6">
+    <svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>
+    <div class="kick" style="color:var(--ink)">AEON <span style="color:var(--ink-3)">NETWORK</span></div>
+    <h1 class="big">The live hub for<br />Robinhood Chain.</h1>
+    <div class="links"><b class="solid">getaeon.network</b><b>github.com/AeonNetwork</b></div>
+  </div>
+
+  <div class="stamp" id="stamp"></div>
+</div>
+
+<script type="module">
+  import { startRing } from '/js/ring.js';
+  import { startOrb } from '/js/orb.js';
+  const D = window.DATA;
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n, d = 0) => Number(n).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const span = (t, a, b) => clamp((t - a) / (b - a));
+  $('stamp').textContent = `REAL DATA · ROBINHOOD CHAIN · ${D.capturedAt}`;
+
+  // Scene windows (seconds) with 0.5 s cross-fades.
+  const SCENES = { s1: [0, 3.2], s2: [3.2, 10.5], s3: [10.5, 15.5], s4: [15.5, 22.5], s5: [22.5, 26.8], s6: [26.8, 31.5] };
+  const fade = (t, [a, b]) => Math.min(span(t, a, a + 0.5), 1 - span(t, b - 0.45, b));
+
+  // ---- 1 · particles assemble the Æ mark ----
+  const lc = $('logoCanvas'), lx = lc.getContext('2d');
+  const glyph = new OffscreenCanvas(1920, 1080), gx = glyph.getContext('2d');
+  gx.fillStyle = '#fff';
+  gx.translate(960 - 208 * 1.7 / 2, 470 - 188 * 1.7 / 2);
+  gx.scale(1.7, 1.7);
+  gx.translate(-96, -106);
+  for (const d of ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z']) gx.fill(new Path2D(d));
+  const px = gx.getImageData(0, 0, 1920, 1080).data;
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const parts = [];
+  for (let y = 0; y < 1080; y += 4) for (let x = 0; x < 1920; x += 4) if (px[(y * 1920 + x) * 4 + 3] > 128) {
+    const a = rnd() * Math.PI * 2, r = 620 + rnd() * 60;
+    parts.push({ x, y, sx: 960 + Math.cos(a) * r, sy: 470 + Math.sin(a) * r * 0.32, d: rnd() * 0.5, b: 0.5 + rnd() * 0.5 });
+  }
+  const drawLogo = (t) => {
+    lx.clearRect(0, 0, 1920, 1080);
+    for (const p of parts) {
+      const k = ease(span(t, 0.2 + p.d, 1.7 + p.d));
+      const x = p.sx + (p.x - p.sx) * k, y = p.sy + (p.y - p.sy) * k;
+      lx.fillStyle = `rgba(255,255,255,${(0.35 + 0.65 * k) * p.b})`;
+      lx.fillRect(x, y, 2.6, 2.6);
+    }
+    $('word').style.opacity = span(t, 1.7, 2.4);
+  };
+
+  // ---- 2 · ring with real blocks ----
+  let ring = null, ringNext = 0, blockIdx = 0;
+  // ---- 3 · stocks ----
+  $('rows').innerHTML = D.stocks.map((s, i) => `<div class="row" data-i="${i}" style="opacity:0">
+      <span class="ph">${s.symbol.slice(0, 2)}</span>
+      <span class="sym">${s.symbol}</span><span>${s.name}</span>
+      <span class="num">${fmt(s.holders)} holders</span><span class="num">$${fmt(s.price, 2)}</span><span class="ok">✓ official ERC-8056</span></div>`).join('');
+  // ---- 4 · AI ----
+  let orb = null, typedN = 0, collapsed = false;
+  $('qText').textContent = D.question;
+  // The AI's own words, cut at a sentence boundary so they can be read on screen.
+  // A sentence ends at . ! ? followed by a space and a capital, so "0.1 s" is not a break.
+  const sentences = D.answer.split(/(?<=[.!?])\s+(?=[A-Z#])/);
+  let short = '';
+  for (const s of sentences) {
+    if (short && (short + ' ' + s).split(/\s+/).length > 32) break;
+    short += (short ? ' ' : '') + s;
+  }
+  const words = short.trim().split(/(\s+)/);
+  // ---- 5 · numbers ----
+  const CELLS = [
+    ['Total transactions', D.totalTx, 0, ''],
+    ['Total addresses', D.addresses, 0, ''],
+    ['Transactions · last 24 h', D.txToday, 0, ''],
+    ['Total value locked', D.tvl / 1e9, 2, `<i> billion USD · #${D.tvlRank} of ${D.chains} chains</i>`],
+  ];
+  $('grid4').innerHTML = CELLS.map(([k], i) => `<div class="cell"><span>${k}</span><b id="n${i}">0</b></div>`).join('');
+
+  function frame(t) {
+    for (const [id, w] of Object.entries(SCENES)) $(id).style.opacity = fade(t, w);
+    if (t < 3.3) drawLogo(t);
+
+    if (t >= 3.0 && !ring) {
+      ring = startRing($('ringBox'));
+      D.anchors.forEach((a, i) => ring.anchor(a[0], a[1]));
+    }
+    if (ring && t >= 3.0 && t < 10.5) {
+      // Real recent blocks, oldest first: one appears per beat, the counter follows it.
+      while (ringNext <= t && blockIdx < D.recent.length) {
+        const b = D.recent[blockIdx++];
+        ring.block(b.number, b.txs);
+        for (let k = 0; k < 4; k++) ring.block(null, 0); // spread the next branch further along the ring
+        $('blockNo').textContent = '#' + fmt(b.number);
+        ringNext = (ringNext || 3.0) + 0.45;
+      }
+    }
+
+    document.querySelectorAll('#rows .row').forEach((r) => {
+      const k = ease(span(t, 11.0 + r.dataset.i * 0.18, 11.6 + r.dataset.i * 0.18));
+      r.style.opacity = k;
+      r.style.transform = `translateX(${(1 - k) * 60}px)`;
+    });
+
+    if (t >= 15.3 && !orb && !collapsed) orb = startOrb($('orbBox'));
+    if (t >= 16.2 && t < 18.6) {
+      const n = Math.floor(span(t, 16.2, 18.4) * D.question.length);
+      while (typedN < n) (typedN++, orb?.key());
+      $('typed').textContent = D.question.slice(0, typedN);
+    }
+    if (t >= 18.7 && orb && !collapsed) (collapsed = true, orb.collapse());
+    $('orbBox').style.opacity = 1 - span(t, 18.8, 19.2);
+    $('ask').style.opacity = 1 - span(t, 18.8, 19.1);
+    $('aiTitle').style.opacity = 1 - span(t, 18.8, 19.1);
+    $('answer').style.opacity = span(t, 19.1, 19.5);
+    if (t >= 19.3) $('aText').textContent = words.slice(0, Math.ceil(span(t, 19.4, 20.7) * words.length)).join('');
+
+    CELLS.forEach(([, v, d], i) => {
+      const k = ease(span(t, 23.0 + i * 0.15, 25.0 + i * 0.15));
+      $('n' + i).innerHTML = (i === 3 ? '$' : '') + fmt(v * k, d) + (CELLS[i][3] || '');
+    });
+  }
+
+  window.__frame = frame;
+  window.__ready = true;
+</script>
+</body>
+</html>
