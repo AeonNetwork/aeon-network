@@ -2,6 +2,8 @@
 
 # Aeon Network — the live hub for Robinhood Chain
 
+[getaeon.network](https://getaeon.network) · [X @getaeon_network](https://x.com/getaeon_network) · [Status](https://getaeon.network/#/status) · [Docs](https://getaeon.network/#/docs)
+
 **getaeon.network** · Network activity, block explorer, ecosystem directory, tokens, wallet tools and a network AI for Robinhood Chain (Arbitrum Orbit L2, chain ID 4663). All data is real: read from the chain or from public data providers. Nothing is mocked; when a source is down the UI says so.
 
 ## Run

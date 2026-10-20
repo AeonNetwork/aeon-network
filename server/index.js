@@ -322,7 +322,7 @@ app.get('/s/:kind/:net/:id', async (req, res) => {
 <link rel="icon" href="/img/logo.svg" type="image/svg+xml"><meta property="og:site_name" content="Aeon Network"><meta property="og:type" content="website">
 <meta property="og:title" content="${escHtml(title)}"><meta property="og:description" content="${escHtml(desc)}">
 <meta property="og:url" content="${escHtml(url + req.originalUrl)}"><meta property="og:image" content="${escHtml(url)}/img/og.png">
-<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escHtml(title)}"><meta name="twitter:description" content="${escHtml(desc)}"><meta name="twitter:image" content="${escHtml(url)}/img/og.png">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:site" content="@getaeon_network"><meta name="twitter:title" content="${escHtml(title)}"><meta name="twitter:description" content="${escHtml(desc)}"><meta name="twitter:image" content="${escHtml(url)}/img/og.png">
 <meta http-equiv="refresh" content="0;url=${escHtml(target)}"></head>
 <body style="background:#000;color:#fff;font-family:sans-serif"><p>${escHtml(title)}</p><p>${escHtml(desc)}</p><a href="${escHtml(target)}" style="color:#fff">Open on Aeon Network</a>
 <script>location.replace(${JSON.stringify(target)})</script></body></html>`);

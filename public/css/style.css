@@ -345,3 +345,9 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .prerender h2 { font-size: 16px; margin: 22px 0 8px; }
 .prerender p, .prerender li { color: var(--ink-2); }
 .prerender .kv { margin: 16px 0; border-top: 1px solid var(--line); }
+/* Footer, bottom-right corner: live status + where else Aeon lives. */
+.footer-end { margin-left: auto; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; justify-content: flex-end; }
+.footer-social { display: flex; gap: 8px; }
+.footer-social a { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px; border: 1px solid var(--line); color: var(--ink-2); font: 500 11.5px var(--mono); letter-spacing: 0.02em; }
+.footer-social a:hover { color: var(--ink); border-color: var(--line-strong); }
+.footer-social svg { width: 13px; height: 13px; fill: currentColor; }
