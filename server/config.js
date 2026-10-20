@@ -98,7 +98,7 @@ const PROVIDERS = {
   openrouter: {
     label: 'OpenRouter',
     key: env.OPENROUTER_API_KEY || '',
-    model: env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free',
+    model: env.OPENROUTER_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free',
     baseURL: 'https://openrouter.ai/api/v1',
   },
 };
