@@ -3,6 +3,19 @@ import { esc } from '../core.js';
 
 export const RELEASES = [
   {
+    date: 'Oct 21, 2026',
+    tag: 'Big update',
+    title: 'Whale tracker',
+    items: [
+      'Large buys and sells of official stock tokens, read from the chain every 90 seconds',
+      'Filter by size (from $1K to $100K+), by stock and by buys or sells',
+      '24-hour whale volume, the biggest trade and the top whale wallets',
+      'Every whale links to its full portfolio and to the transaction on-chain',
+      'Swaps routed through pools are netted per wallet, so a buy is a buy',
+    ],
+    link: ['#/whales', 'Open Whale tracker'],
+  },
+  {
     date: 'Oct 20, 2026',
     tag: 'Update',
     title: 'Faster, steadier, easier to trust',
@@ -45,7 +58,7 @@ export function render(main) {
     <div class="changelog">
       ${RELEASES.map(
         (r) => `<section class="box reveal mt">
-          <div class="box-head"><span>${esc(r.date)}</span><span class="right"><span class="tag ${r.tag === 'New' ? 'solid' : ''}">${esc(r.tag)}</span></span></div>
+          <div class="box-head"><span>${esc(r.date)}</span><span class="right"><span class="tag ${r.tag === 'New' || r.tag === 'Big update' ? 'solid' : ''}">${esc(r.tag)}</span></span></div>
           <div class="box-body">
             <h2>${esc(r.title)}</h2>
             <ul>${r.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>

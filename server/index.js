@@ -14,6 +14,7 @@ import * as indexer from './services/indexer.js';
 import * as eco from './services/ecosystem.js';
 import { chat, tokenUniverse } from './services/ai.js';
 import * as insights from './services/insights.js';
+import * as whales from './services/whales.js';
 
 installDoh();
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -299,6 +300,16 @@ app.get(
 app.get('/api/status', (req, res) => res.set('cache-control', 'no-store').json(insights.status()));
 app.get('/api/network/:net/portfolio/:addr', api((req) => insights.portfolio(net(req), req.params.addr), 20));
 app.get('/api/network/:net/portfolio/:addr/detail', api((req) => insights.portfolioDetail(net(req), req.params.addr), 30));
+app.get(
+  '/api/network/:net/whales',
+  api((req) => {
+    if (net(req) !== 'mainnet') throw Object.assign(new Error('Stock tokens live on mainnet'), { status: 404 });
+    const min = [1_000, 10_000, 50_000, 100_000].includes(Number(req.query.min)) ? Number(req.query.min) : 10_000;
+    const side = ['buy', 'sell'].includes(req.query.side) ? req.query.side : null;
+    const symbol = /^[A-Za-z0-9.]{1,12}$/.test(req.query.symbol || '') ? req.query.symbol : null;
+    return whales.whales({ min, side, symbol });
+  }, 20),
+);
 app.get('/api/network/:net/portfolio-example', api((req) => insights.portfolioExample(net(req)), 300));
 app.get('/api/network/:net/approvals/:addr', api((req) => insights.approvals(net(req), req.params.addr), 20));
 app.get('/api/network/:net/crosscheck/:kind/:id', api((req) => insights.crosscheck(net(req), req.params.kind, req.params.id), 0));
@@ -517,6 +528,7 @@ for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => (saveToDisk(), pr
 
 indexer.startIndexer();
 insights.startStatus();
+whales.startWhales();
 // Warm ecosystem data in the background, staggered.
 setTimeout(() => eco.chainSummary('mainnet').catch(() => {}), 2000);
 setTimeout(() => eco.protocols('mainnet').catch(() => {}), 4000);

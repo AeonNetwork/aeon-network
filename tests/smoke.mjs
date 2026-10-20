@@ -74,6 +74,10 @@ await check('portfolio example + detail', async () => {
   assert(d.holdings.length > 0 && d.stocksValueUsd > 0, 'empty portfolio');
   assert(Array.isArray(d.activity) && Array.isArray(d.history), 'missing activity/history');
 });
+await check('whale tracker', async () => {
+  const d = (await get('/api/network/mainnet/whales?min=1000')).body;
+  assert(Array.isArray(d.items) && d.summary && Array.isArray(d.topWallets), 'bad shape');
+});
 await check('address lookup', () => get(`/api/network/mainnet/address/${WETH}`));
 await check('search', () => get(`/api/network/mainnet/lookup?q=${WETH}`));
 for (const p of ['summary', 'protocols', 'tvl', 'dex', 'fees', 'stablecoins']) await check(`ecosystem ${p}`, () => get(`/api/ecosystem/mainnet/${p}`));

@@ -26,11 +26,11 @@ function mount(main) {
   <section class="box hero reveal">
     <div class="hero-main">
       <div>
-        <a class="whatsnew" href="#/changelog"><span>NEW</span>Portfolio for tokenized stocks · what's new →</a>
+        <a class="whatsnew" href="#/changelog"><span>NEW</span>Whale tracker for stock tokens · what's new →</a>
         <div class="kicker">${esc(n.name)} · ${isMain ? 'Mainnet' : 'Testnet'} · Chain ID ${n.chainId}</div>
         <div class="hero-block mt" id="hBlock">#—</div>
         <p class="hero-title">The live hub for Robinhood Chain. Every block, transaction and protocol, as it happens.</p>
-        <div class="hero-cta"><a class="btn btn-primary" href="#/portfolio">Track your stocks</a><a class="btn" href="#/ai">Ask the chain</a></div>
+        <div class="hero-cta"><a class="btn btn-primary" href="#/portfolio">Track your stocks</a><a class="btn" href="#/whales">Follow the whales</a><a class="btn" href="#/ai">Ask the chain</a></div>
       </div>
       <div class="hero-stats">
         <div><span>Block time</span><b id="hBt">—</b></div>
