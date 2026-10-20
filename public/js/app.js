@@ -57,6 +57,20 @@ async function route() {
 }
 addEventListener('hashchange', route);
 
+// Any [data-copy] button copies its value.
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-copy]');
+  if (!b) return;
+  navigator.clipboard.writeText(b.dataset.copy).then(
+    () => {
+      toast('Copied: ' + short(b.dataset.copy, 8));
+      b.textContent = 'Copied';
+      setTimeout(() => (b.textContent = 'Copy'), 1500);
+    },
+    () => toast('Copy failed. Select the address and copy it manually.', 'err'),
+  );
+});
+
 // Broken logo -> initials placeholder.
 document.addEventListener(
   'error',

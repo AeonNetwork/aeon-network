@@ -404,3 +404,9 @@ table.tbl { width: 100%; border-collapse: collapse; }
   .pf-asset span:not(.tag):not(.pf-ph) { max-width: 150px; }
   .pf-tbl th, .pf-tbl td { padding: 10px; }
 }
+/* Footer, last line: the community token's contract address. */
+.footer-ca { flex-basis: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--line); }
+.footer-ca-label { font: 600 11px var(--mono); letter-spacing: 0.14em; background: var(--ink); color: var(--bg); padding: 4px 8px; }
+.footer-ca a { color: var(--ink); font-size: 12.5px; word-break: break-all; border-bottom: 1px dotted var(--ink-3); }
+.footer-ca a:hover { border-color: var(--ink); }
+.footer-ca .dim { font-size: 12px; }

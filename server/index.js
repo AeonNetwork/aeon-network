@@ -456,7 +456,9 @@ const sendShell = async (req, res) => {
 };
 app.get(['/', '/index.html'], sendShell);
 
-app.use(express.static(path.join(here, '..', 'public'), { extensions: ['html'], maxAge: 0 }));
+// "no-cache" = keep a copy but revalidate (ETag -> 304) on every load. A plain max-age=0 lets
+// Cloudflare's Browser Cache TTL rewrite it to hours, which would hide updates from visitors.
+app.use(express.static(path.join(here, '..', 'public'), { extensions: ['html'], setHeaders: (res) => res.set('cache-control', 'no-cache') }));
 app.get('/{*splat}', sendShell);
 
 // Last-resort error handler: never leak stack traces to visitors.
