@@ -1,0 +1,143 @@
+<!doctype html>
+<!-- GitHub banner source. Render: brand/banner.html?w=1600&h=560 (README) or ?w=1280&h=640 (social preview). -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255, 255, 255, 0.14); --line-strong: rgba(255, 255, 255, 0.32); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .frame { position: relative; overflow: hidden; background: radial-gradient(120% 90% at 78% 70%, #141414 0%, #000 60%); }
+  canvas { position: absolute; inset: 0; }
+  .grid { position: absolute; inset: 0; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 64px 64px; opacity: 0.25; mask-image: radial-gradient(80% 80% at 30% 40%, #000, transparent 75%); }
+  .box { position: absolute; inset: 28px; border: 1px solid var(--line); }
+  .box::before, .box::after { content: ''; position: absolute; width: 14px; height: 14px; border: 0 solid var(--ink); }
+  .box::before { top: -1px; left: -1px; border-top-width: 2px; border-left-width: 2px; }
+  .box::after { bottom: -1px; right: -1px; border-bottom-width: 2px; border-right-width: 2px; }
+  .content { position: absolute; left: 72px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; gap: 22px; max-width: 54%; }
+  .brand { display: flex; align-items: center; gap: 14px; font: 600 17px 'Geist Mono', monospace; letter-spacing: 0.22em; }
+  .brand span { color: var(--ink-3); }
+  .brand svg { width: 40px; height: 36px; }
+  h1 { margin: 0; font-weight: 700; letter-spacing: -0.045em; line-height: 0.98; }
+  .sub { font: 500 15px 'Geist Mono', monospace; color: var(--ink-2); letter-spacing: 0.02em; display: flex; flex-wrap: wrap; gap: 8px; }
+  .sub b { font-weight: 500; border: 1px solid var(--line-strong); padding: 5px 10px; color: var(--ink); }
+  .foot { font: 500 13px 'Geist Mono', monospace; color: var(--ink-3); letter-spacing: 0.12em; text-transform: uppercase; }
+  .foot i { font-style: normal; color: var(--ink); }
+  .label { position: absolute; font: 500 12px 'Geist Mono', monospace; letter-spacing: 0.04em; white-space: nowrap; background: rgba(0, 0, 0, 0.78); border: 1px solid var(--line-strong); padding: 4px 8px; transform: translate(-50%, calc(-100% - 10px)); }
+  .label.dim { color: var(--ink-2); border-color: var(--line); }
+  .live { display: inline-block; width: 7px; height: 7px; background: var(--ink); margin-right: 8px; vertical-align: 1px; }
+</style>
+</head>
+<body>
+<div class="frame" id="frame">
+  <div class="grid"></div>
+  <canvas id="c"></canvas>
+  <div id="labels"></div>
+  <div class="box"></div>
+  <div class="content">
+    <div class="brand">
+      <svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>
+      AEON<span>NETWORK</span>
+    </div>
+    <h1 id="h1">The live hub for<br />Robinhood Chain.</h1>
+    <div class="sub"><b>Network</b><b>Explorer</b><b>Tokenized stocks</b><b>Ecosystem</b><b>Network AI</b></div>
+    <div class="foot"><span class="live"></span><i>getaeon.network</i> · Chain ID 4663 · 100% on-chain data</div>
+  </div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const W = +q.get('w') || 1600, H = +q.get('h') || 560;
+  const frame = document.getElementById('frame');
+  frame.style.width = W + 'px';
+  frame.style.height = H + 'px';
+  document.getElementById('h1').style.fontSize = Math.round(Math.min(W * 0.05, H * 0.14)) + 'px';
+
+  // Deterministic randomness so every render is identical.
+  let seed = 4663;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const rand = (a, b) => a + rnd() * (b - a);
+
+  const canvas = document.getElementById('c');
+  const dpr = 2;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const cx = W * 0.73, cy = H * 0.68, R = Math.min(W * 0.165, H * 0.5);
+  const tilt = 0.32, rot = 0.6;
+  const project = (x, y, z) => {
+    const ca = Math.cos(rot), sa = Math.sin(rot);
+    const X = x * ca - z * sa, Z1 = x * sa + z * ca;
+    const Y = y * Math.cos(tilt) + Z1 * Math.sin(tilt);
+    const Z = y * Math.sin(tilt) + Z1 * Math.cos(tilt);
+    const s = 6 / (6 + Z);
+    return { x: cx + X * R * s, y: cy + Y * R * s, z: Z, s };
+  };
+  const dot = (p, a, size = 1.2) => {
+    ctx.fillStyle = `rgba(255,255,255,${a})`;
+    ctx.fillRect(p.x, p.y, size * p.s, size * p.s);
+  };
+
+  // Ring: the chain. The bright arc is the newest blocks.
+  const head = 5.2;
+  for (let i = 0; i < 2600; i++) {
+    const a = (i / 2600) * Math.PI * 2 + rand(-0.003, 0.003);
+    const r = 1 + (rnd() < 0.8 ? rand(-0.03, 0.03) : rand(-0.08, 0.08));
+    const p = project(Math.cos(a) * r, rand(-0.012, 0.012), Math.sin(a) * r);
+    let d = (a - head) % (Math.PI * 2);
+    if (d < 0) d += Math.PI * 2;
+    const glow = d > Math.PI * 2 - 0.7 ? 1 - (Math.PI * 2 - d) / 0.7 : 0;
+    const depth = Math.max(0, Math.min(1, 0.55 - p.z * 0.45));
+    dot(p, Math.min(1, (0.12 + depth * 0.6) * rand(0.4, 1) + glow * 0.9), glow > 0.2 ? 1.8 : 1.2);
+  }
+
+  // Trees: blocks growing out of the ring, sized by their transactions.
+  const labels = document.getElementById('labels');
+  const label = (p, text, dim) => {
+    const el = document.createElement('div');
+    el.className = 'label' + (dim ? ' dim' : '');
+    el.textContent = text;
+    labels.append(el);
+    // Keep every label fully inside the frame.
+    const half = el.offsetWidth / 2 + 44;
+    el.style.left = Math.max(half, Math.min(W - half, p.x)) + 'px';
+    el.style.top = Math.max(el.offsetHeight + 56, p.y) + 'px';
+  };
+  const tree = (angle, size, text, dim) => {
+    const pts = [];
+    const ox = Math.cos(angle), oz = Math.sin(angle);
+    const branch = (x, y, z, dx, dy, dz, len, depth) => {
+      const steps = Math.max(5, Math.round(len * 70));
+      for (let s = 0; s < steps; s++) {
+        dx += rand(-0.08, 0.08); dy += rand(-0.05, 0.05); dz += rand(-0.08, 0.08);
+        const n = Math.hypot(dx, dy, dz); dx /= n; dy /= n; dz /= n;
+        x += (dx * len) / steps; y += (dy * len) / steps; z += (dz * len) / steps;
+        for (let k = 0; k < 2; k++) pts.push([x + rand(-0.005, 0.005), y + rand(-0.005, 0.005), z + rand(-0.005, 0.005)]);
+        if (depth < 2 && rnd() < 0.08 + depth * 0.05) branch(x, y, z, dx + rand(-0.6, 0.6), dy + rand(-0.2, 0.2), dz + rand(-0.6, 0.6), len * rand(0.35, 0.6), depth + 1);
+      }
+      for (let k = 0; k < 8 + depth * 4; k++) pts.push([x + rand(-0.03, 0.03), y + rand(-0.03, 0.03), z + rand(-0.03, 0.03)]);
+    };
+    branch(ox, 0, oz, ox * 0.3, -rand(0.95, 1.15), oz * 0.3, 0.16 + size * 0.42, 0);
+    let top = null;
+    for (const [x, y, z] of pts) {
+      const p = project(x, y, z);
+      const depth = Math.max(0, Math.min(1, 0.6 - p.z * 0.45));
+      dot(p, 0.2 + depth * 0.7, 1.15);
+      if (!top || p.y < top.y) top = p;
+    }
+    if (text && top.z < 0.5) label(top, text, dim);
+  };
+  tree(head - 0.05, 0.75, '#92,640,118 · 14 tx');
+  tree(head - 0.55, 0.45, '#92,640,102 · 6 tx', true);
+  tree(head + 1.2, 0.95, 'TSLA · official ERC-8056');
+  tree(head + 2.3, 0.6, 'WETH · 10.2% of calls', true);
+  tree(head + 3.4, 0.85, 'Aeon RPC · open');
+  tree(head - 1.3, 0.3);
+  tree(head + 2.8, 0.35);
+</script>
+</body>
+</html>

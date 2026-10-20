@@ -1,3 +1,5 @@
+<p align="center"><img src="brand/github-banner.png" alt="Aeon Network: the live hub for Robinhood Chain" width="100%" /></p>
+
 # Aeon Network — the live hub for Robinhood Chain
 
 **getaeon.network** · Network activity, block explorer, ecosystem directory, tokens, wallet tools and a network AI for Robinhood Chain (Arbitrum Orbit L2, chain ID 4663). All data is real: read from the chain or from public data providers. Nothing is mocked; when a source is down the UI says so.
