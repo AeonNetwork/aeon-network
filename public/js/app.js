@@ -19,6 +19,7 @@ const views = {
   token: () => import('./views/token.js'),
   faq: () => import('./views/faq.js'),
   legal: () => import('./views/legal.js'),
+  changelog: () => import('./views/changelog.js'),
   notfound: () => import('./views/notfound.js'),
 };
 const TITLES = {
@@ -36,6 +37,7 @@ const TITLES = {
   token: 'Token · Aeon Network',
   faq: 'FAQ · Aeon Network',
   legal: 'Disclaimer, privacy & terms · Aeon Network',
+  changelog: "What's new · Aeon Network",
   notfound: 'Not found · Aeon Network',
 };
 
