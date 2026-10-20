@@ -1,0 +1,103 @@
+<!doctype html>
+<!-- 5-second poll teaser "Should we pay DEX?" (1920x1080). window.render(t) drives every frame. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@700;800;900&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+const x = document.getElementById('c').getContext('2d');
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const out = (k) => 1 - (1 - k) ** 3;
+const lerp = (a, b, k) => a + (b - a) * k;
+let seed = 5;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'].map((d) => new Path2D(d));
+const SPR = new OffscreenCanvas(1040, 940);
+{ const g = SPR.getContext('2d'); g.scale(5, 5); g.translate(-96, -106); g.fillStyle = '#fff'; AE.forEach((p) => g.fill(p)); }
+const S = Array.from({ length: 1400 }, () => ({ x: (rnd() - 0.5) * 6, y: (rnd() - 0.5) * 3.4, z: 0.15 + rnd() * 4, b: 0.3 + rnd() * 0.7 }));
+function text(str, px, py, size, { weight = 900, font = 'Geist', color = '#fff', alpha = 1, spacing = 0, blur = 0 } = {}) {
+  if (alpha <= 0) return;
+  x.save();
+  x.globalAlpha = alpha;
+  x.font = `${weight} ${size}px "${font}"`;
+  x.letterSpacing = spacing + 'px';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.fillStyle = color;
+  if (blur > 0.3) x.filter = `blur(${blur}px)`;
+  x.fillText(str, px, py);
+  x.restore();
+}
+function flare(py, s) {
+  if (s < 0.01) return;
+  x.save();
+  x.globalCompositeOperation = 'lighter';
+  const g = x.createLinearGradient(0, 0, W, 0);
+  g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, `rgba(255,255,255,${0.9 * s})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, py - 2, W, 4);
+  const r = x.createRadialGradient(CX, py, 0, CX, py, 500);
+  r.addColorStop(0, `rgba(255,255,255,${0.3 * s})`); r.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = r; x.fillRect(0, 0, W, H);
+  x.restore();
+}
+window.render = (t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.filter = 'none'; x.globalAlpha = 1;
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  // stars, a short surge into the hit at 1.45 s
+  const d = t * 0.25 + 1.2 * out(span(t, 0.9, 1.45));
+  x.strokeStyle = '#fff';
+  for (const s of S) {
+    const z = ((s.z - d) % 4 + 4) % 4 + 0.08;
+    const px = CX + (s.x / z) * 225, py = CY + (s.y / z) * 225;
+    const z0 = z + (t > 0.9 && t < 1.5 ? 0.06 : 0.008);
+    x.globalAlpha = s.b * clamp(1.4 - z / 3) * 0.8;
+    x.lineWidth = Math.min(3, 1.3 / z);
+    x.beginPath(); x.moveTo(CX + (s.x / z0) * 225, CY + (s.y / z0) * 225); x.lineTo(px + 0.01, py); x.stroke();
+  }
+  x.globalAlpha = 1;
+  const push = lerp(1, 1.05, t / 5);
+  x.translate(CX, CY); x.scale(push, push); x.translate(-CX, -CY);
+  // mark
+  const mk = out(span(t, 0.25, 0.9));
+  x.save();
+  x.globalAlpha = mk;
+  x.shadowColor = '#fff'; x.shadowBlur = 40 * (1 - 0.6 * mk);
+  x.drawImage(SPR, CX - 55, 150, 110, 99);
+  x.restore();
+  // lines
+  text('SHOULD WE', CX, 360, 54, { font: 'Geist Mono', weight: 600, spacing: lerp(40, 18, out(span(t, 0.45, 1.3))), alpha: out(span(t, 0.45, 1.1)), blur: (1 - out(span(t, 0.45, 1.1))) * 10, color: '#bdbdbd' });
+  const hit = out(span(t, 1.45, 1.9));
+  text('PAY DEX?', CX, 560, 260, { spacing: -10, alpha: hit, blur: (1 - hit) * 18 });
+  text('THE COMMUNITY DECIDES.', CX, 780, 44, { weight: 800, spacing: -1, alpha: out(span(t, 2.9, 3.5)), blur: (1 - out(span(t, 2.9, 3.5))) * 8 });
+  const v = out(span(t, 3.4, 3.9));
+  if (v > 0) {
+    x.save();
+    x.globalAlpha = v;
+    x.fillStyle = '#fff';
+    x.fillRect(CX - 150, 850, 300, 70);
+    x.restore();
+    text('VOTE  ↑', CX, 886, 34, { font: 'Geist Mono', weight: 600, spacing: 6, color: '#000', alpha: v });
+  }
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  flare(560, Math.exp(-Math.max(0, t - 1.45) / 0.6) * (t >= 1.45));
+  if (t >= 1.45 && t < 1.75) (x.fillStyle = `rgba(255,255,255,${0.7 * (1 - span(t, 1.45, 1.75)) ** 2})`), x.fillRect(0, 0, W, H);
+  // vignette + letterbox + fade
+  const vg = x.createRadialGradient(CX, CY, H * 0.3, CX, CY, H * 0.95);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.8)');
+  x.fillStyle = vg; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, 100); x.fillRect(0, H - 100, W, 100);
+  text('getaeon.network', CX, H - 50, 22, { font: 'Geist Mono', weight: 500, spacing: 4, color: '#8a8a8a' });
+  const f = span(t, 4.75, 5);
+  if (f > 0) (x.fillStyle = `rgba(0,0,0,${f})`), x.fillRect(0, 0, W, H);
+};
+Promise.all(['700 10px Geist', '800 10px Geist', '900 10px Geist', '500 10px "Geist Mono"', '600 10px "Geist Mono"'].map((f) => document.fonts.load(f))).then(() => (window.__ready = true));
+</script>
+</body>
+</html>
