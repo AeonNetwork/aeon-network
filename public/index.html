@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Aeon Network — The live hub for Robinhood Chain</title>
+  <meta name="description" content="Aeon Network: live Robinhood Chain activity, block explorer, ecosystem directory, tokens, wallet tools and a network AI." />
+  <link rel="canonical" href="https://getaeon.network/" />
+  <meta property="og:site_name" content="Aeon Network" />
+  <meta property="og:title" content="Aeon Network" />
+  <meta property="og:description" content="The live hub for Robinhood Chain: network activity, explorer, ecosystem and AI." />
+  <meta property="og:url" content="https://getaeon.network/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/img/og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
+  <link rel="icon" href="/img/icon-32.png" sizes="32x32" type="image/png" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a href="#/" class="brand" aria-label="Aeon Network home">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-word">AEON<span>NETWORK</span></span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#/" data-route="network">Network</a>
+      <a href="#/stocks" data-route="stocks">Stocks</a>
+      <a href="#/explorer" data-route="explorer">Explorer</a>
+      <a href="#/ecosystem" data-route="ecosystem">Ecosystem</a>
+      <a href="#/tokens" data-route="tokens">Tokens</a>
+      <a href="#/wallet" data-route="wallet">Watchlist</a>
+      <a href="#/ai" data-route="ai">AI</a>
+      <a href="#/docs" data-route="docs">Docs</a>
+    </nav>
+    <div class="topbar-right">
+      <div class="seg" id="netSwitch" role="group" aria-label="Network">
+        <button data-net="mainnet">Mainnet</button>
+        <button data-net="testnet">Testnet</button>
+      </div>
+      <span class="status-dot" id="statusDot" title="RPC status"></span>
+      <button class="btn btn-sm" id="walletBtn" title="Optional — every page works without connecting"><span class="btn-label">Connect</span></button>
+    </div>
+  </header>
+
+  <main id="view" tabindex="-1"></main>
+
+  <nav class="tabbar" aria-label="Bottom navigation">
+    <a href="#/" data-route="network"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M12 7v4m0 0l-5.5 5.5M12 11l5.5 5.5"/></svg>Network</a>
+    <a href="#/stocks" data-route="stocks"><svg viewBox="0 0 24 24"><path d="M4 19h16M7 16V9m5 7V5m5 11v-4"/></svg>Stocks</a>
+    <a href="#/explorer" data-route="explorer"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Explorer</a>
+    <a href="#/ecosystem" data-route="ecosystem"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>Ecosystem</a>
+    <a href="#/wallet" data-route="wallet"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Watch</a>
+    <a href="#/ai" data-route="ai"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>AI</a>
+  </nav>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+  <dialog class="modal" id="modal"></dialog>
+
+  <footer class="footer">
+    <div><span class="brand-mark foot-mark" aria-hidden="true"></span><b>AEON NETWORK</b> · getaeon.network · The live hub for Robinhood Chain. Independent; not affiliated with Robinhood. Data: Robinhood Chain RPC, Blockscout, DefiLlama, CoinGecko.</div>
+    <nav class="footer-links" aria-label="Footer"><a href="#/status">Status</a><a href="#/check">Wallet check</a><a href="#/docs">Docs</a><a href="#/faq">FAQ</a><a href="#/docs/api">API</a><a href="#/docs/rpc">Aeon RPC</a><a href="#/docs/stocks">ERC-8056</a><a href="#/legal/disclaimer">Disclaimer</a><a href="#/legal/privacy">Privacy</a><a href="#/legal/terms">Terms</a></nav>
+    <div class="footer-status mono" id="footStatus"></div>
+  </footer>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
