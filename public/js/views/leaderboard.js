@@ -57,7 +57,7 @@ function mount(main) {
             <div class="box metric"><div class="box-head">Top 50 hold</div><div class="box-body"><div class="metric-val">${fmtUsd(d.totalUsd)}</div><div class="metric-sub">in official stock tokens</div></div></div>
             <div class="box metric"><div class="box-head">Wallets checked</div><div class="box-body"><div class="metric-val">${fmtNum(d.wallets, 0)}</div><div class="metric-sub">individual holders</div></div></div>
             <div class="box metric"><div class="box-head">Stocks scanned</div><div class="box-body"><div class="metric-val">${fmtNum(d.tokens, 0)}</div><div class="metric-sub">official ERC-8056 tokens</div></div></div>
-            <div class="box metric"><div class="box-head">Updated</div><div class="box-body"><div class="metric-val" data-time="${d.at}">${ago(d.at)}</div><div class="metric-sub">refreshes every 30 minutes</div></div></div>
+            <div class="box metric"><div class="box-head">Updated</div><div class="box-body"><div class="metric-val" data-time="${d.at}">${ago(d.at)}</div><div class="metric-sub">refreshes every 6 hours</div></div></div>
           </section>
           <section class="lb-podium mt">${[second, first, third].filter(Boolean).map((r) => podium(r, r.rank)).join('')}</section>
           <section class="box reveal mt">

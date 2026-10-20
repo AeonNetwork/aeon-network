@@ -4,6 +4,19 @@ import { esc } from '../core.js';
 export const RELEASES = [
   {
     date: 'Oct 21, 2026',
+    tag: 'Big update',
+    title: 'Network Pulse, and a faster, sturdier engine',
+    items: [
+      'Network Pulse: Robinhood Chain today in one report, with the change since yesterday',
+      'Activity, fees, DEX volume, value locked, stablecoins, stock tokens and whales on one page',
+      'One-click summary to copy or share, with its own link preview: getaeon.network/pulse',
+      'Whale Tracker now reads 40 stock tokens (was 24) straight from the chain, every 2 minutes',
+      'Portfolio and whales keep working even when a data provider is down',
+    ],
+    link: ['#/pulse', 'Open Network Pulse'],
+  },
+  {
+    date: 'Oct 21, 2026',
     tag: 'New',
     title: 'Aeon token: transparency and holder perks',
     items: [
@@ -19,7 +32,7 @@ export const RELEASES = [
     tag: 'Update 2',
     title: 'Holder leaderboard',
     items: [
-      'The 50 largest tokenized-stock portfolios on Robinhood Chain, ranked by live value',
+      'The 50 largest tokenized-stock portfolios on Robinhood Chain, ranked by value',
       'Built from the top holders of every official stock token, then valued exactly from each wallet',
       'Individual wallets only: pools, vaults and contracts are left out',
       'Rank changes since the last update, a podium for the top three, every wallet opens its portfolio',

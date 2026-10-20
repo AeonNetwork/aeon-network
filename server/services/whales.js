@@ -11,11 +11,14 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { CACHE_DIR } from '../config.js';
 import * as eco from './ecosystem.js';
+import * as alc from './alchemy.js';
+import * as chain from './chain.js';
 
 const NET = 'mainnet';
 const KEEP_USD = 1_000;
 const KEEP_MS = 7 * 86_400_000;
-const TOKENS_PER_SCAN = 24;
+const TOKENS_PER_SCAN = 40;
+let lastBlock = null; // Alchemy scans continue from here
 const FILE = path.join(CACHE_DIR, 'whales.json');
 const ZERO = '0x0000000000000000000000000000000000000000';
 
@@ -119,22 +122,52 @@ export async function scan() {
       .sort((a, b) => b.volume24h - a.volume24h)
       .slice(0, TOKENS_PER_SCAN);
     let added = 0;
-    for (const s of stocks) {
-      try {
-        const r = await eco.bs(NET, `/tokens/${s.address}/transfers`, 60_000);
-        for (const w of detect(s, r.value.items || [])) {
-          if (seen.has(w.id)) continue;
-          seen.add(w.id);
-          items.push(w);
-          added++;
+    const keep = (list) => {
+      for (const w of list) {
+        if (seen.has(w.id)) continue;
+        seen.add(w.id);
+        items.push(w);
+        added++;
+      }
+    };
+    let source = 'alchemy';
+    try {
+      // One Alchemy call covers every token: transfers since the last scanned block.
+      const head = Number(await chain.rpc(NET, 'eth_blockNumber', []));
+      const from = lastBlock != null ? lastBlock + 1 : head - 36_000; // first run: ~1 hour back
+      const raw = await alc.transfers(NET, { contracts: stocks.map((s) => s.address), fromBlock: from, max: 5000 });
+      const addrs = [...new Set(raw.flatMap((t) => [t.from, t.to]).filter(Boolean))];
+      const code = new Map();
+      for (let i = 0; i < addrs.length; i += 4) {
+        const part = addrs.slice(i, i + 4);
+        const flags = await Promise.all(part.map((a) => alc.isContract(NET, a).catch(() => false)));
+        part.forEach((a, k) => code.set(a.toLowerCase(), flags[k]));
+      }
+      const bySym = new Map(stocks.map((s) => [s.address.toLowerCase(), { s, rows: [] }]));
+      for (const t of raw) {
+        const g = bySym.get((t.rawContract?.address || '').toLowerCase());
+        if (!g) continue;
+        const side = (a) => (a ? { hash: a, is_contract: Boolean(code.get(a.toLowerCase())), name: null } : null);
+        g.rows.push({ transaction_hash: t.hash, timestamp: t.metadata?.blockTimestamp, block_number: Number(t.blockNum), from: side(t.from), to: side(t.to), total: { value: BigInt(t.rawContract.value || '0x0').toString(), decimals: String(Number(t.rawContract.decimal ?? 18)) } });
+      }
+      for (const { s, rows } of bySym.values()) keep(detect(s, rows));
+      lastBlock = head;
+    } catch (err) {
+      console.error('[whales] Alchemy scan failed, falling back to Blockscout:', err.message);
+      // Fallback: Blockscout, one call per token (costs credits, so only when Alchemy fails).
+      source = 'blockscout';
+      for (const s of stocks.slice(0, 12)) {
+        try {
+          const r = await eco.bs(NET, `/tokens/${s.address}/transfers`, 5 * 60_000);
+          keep(detect(s, r.value.items || []));
+        } catch {
+          /* one token failing never stops the scan */
         }
-      } catch {
-        /* one token failing never stops the scan */
       }
     }
     const cutoff = Date.now() - KEEP_MS;
     items = items.filter((w) => w.t >= cutoff).sort((a, b) => b.t - a.t).slice(0, 5000);
-    lastScan = { at: Date.now(), tokens: stocks.length, added };
+    lastScan = { at: Date.now(), tokens: stocks.length, added, source };
     save();
   } finally {
     scanning = false;
@@ -143,7 +176,7 @@ export async function scan() {
 
 export function startWhales() {
   setTimeout(() => scan().catch(() => {}), 8_000).unref?.();
-  setInterval(() => scan().catch(() => {}), 90_000).unref();
+  setInterval(() => scan().catch(() => {}), 120_000).unref();
 }
 
 // Filtered feed plus a 24 h summary and the biggest wallets.
@@ -181,6 +214,6 @@ export function whales({ min = 10_000, symbol = null, side = null, limit = 100 }
     topWallets: top,
     symbols,
     items: feed.slice(0, Math.min(200, limit)),
-    note: `Trades of the ${TOKENS_PER_SCAN} most-traded stock tokens, read from Blockscout every 90 s. Buy/sell = the wallet's net change in shares within one transaction; values use the current token price.`,
+    note: `Trades of the ${TOKENS_PER_SCAN} most-traded stock tokens, read from the chain every 2 minutes. Buy/sell = the wallet's net change in shares within one transaction; values use the current token price.`,
   };
 }

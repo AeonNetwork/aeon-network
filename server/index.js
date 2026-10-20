@@ -18,6 +18,7 @@ import * as insights from './services/insights.js';
 import * as whales from './services/whales.js';
 import * as board from './services/leaderboard.js';
 import * as aeon from './services/aeon.js';
+import * as pulse from './services/pulse.js';
 
 installDoh();
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -441,6 +442,10 @@ const aiMax = (req) => (aeon.readPass(req.get('x-aeon-pass')) ? AI.maxRequests *
 app.post('/api/ai/chat', dailyCap(AI.dailyLimit, 'The AI has reached its daily limit. It resets at 00:00 UTC.'), ipLimiter({ max: aiMax, windowMs: AI.windowMs }), chat);
 
 // ---------------- Aeon community token ----------------
+app.get('/api/network/:net/pulse', api((req) => {
+  if (net(req) !== 'mainnet') throw Object.assign(new Error('The pulse covers mainnet'), { status: 404 });
+  return pulse.pulse();
+}, 30));
 app.get('/api/aeon/token', api(() => aeon.tokenInfo(), 30));
 app.post('/api/aeon/challenge', ipLimiter({ max: 20, windowMs: 10 * 60_000 }), api((req) => aeon.challenge(req.body?.address), 0));
 app.post('/api/aeon/verify', ipLimiter({ max: 20, windowMs: 10 * 60_000 }), api((req) => aeon.verify(req.body || {}), 0));
@@ -549,6 +554,7 @@ const PAGES = {
   portfolio: ['Portfolio · Aeon Network', "Any wallet's tokenized stocks, valued live: today's gain or loss, 7-day history, every trade. Fakes flagged.", 'portfolio'],
   stocks: ['Tokenized Stocks · Aeon Network', 'All official ERC-8056 stock tokens on Robinhood Chain, and a check that tells them from copycats.', 'stocks'],
   ai: ['Network AI · Aeon Network', 'Ask anything about Robinhood Chain. The AI reads blocks, wallets and tokens before it answers.', 'ai'],
+  pulse: ['Network Pulse · Aeon Network', 'Robinhood Chain today: transactions, fees, DEX volume, TVL, stablecoins and whales, with day-over-day change.', 'pulse'],
   leaderboard: ['Top holders · Aeon Network', 'The 50 largest tokenized-stock portfolios on Robinhood Chain, ranked by live value.', 'leaderboard'],
   changelog: ["What's new · Aeon Network", 'Every Aeon Network release, newest first.', 'changelog'],
 };

@@ -1,6 +1,6 @@
 // Holder leaderboard: the wallets with the largest tokenized-stock portfolios on Robinhood Chain.
 //
-// Every 30 minutes:
+// Every 6 hours:
 //   1. read the first page of holders (top 50) of every official stock token with a price;
 //   2. sum each individual wallet's value across tokens to find the candidates;
 //   3. re-value the top candidates exactly from their full token balances (insights.portfolio),
@@ -48,8 +48,11 @@ const units = (raw, decimals) => {
   }
 };
 
+const EVERY = 6 * 3600_000; // each build reads ~200 Blockscout pages, so keep it rare
+
 export async function build() {
   if (building) return;
+  if (eco.blockscoutCredits(NET).out) return; // no credits: keep the current ranking
   building = true;
   const started = Date.now();
   try {
@@ -121,9 +124,9 @@ export async function build() {
 }
 
 export function startLeaderboard() {
-  const due = !board || Date.now() - board.at > 30 * 60_000;
+  const due = !board || Date.now() - board.at > EVERY;
   setTimeout(() => due && build().catch(() => {}), 20_000).unref?.();
-  setInterval(() => build().catch(() => {}), 30 * 60_000).unref();
+  setInterval(() => build().catch(() => {}), EVERY).unref();
 }
 
 export function leaderboard() {
@@ -131,6 +134,6 @@ export function leaderboard() {
   return {
     ...board,
     building,
-    note: `Individual wallets only (contracts, pools and vaults excluded). Candidates come from the top 50 holders of each of ${board.tokens} official stock tokens; the top ${EXACT} are valued exactly from their full balances. Refreshed every 30 minutes.`,
+    note: `Individual wallets only (contracts, pools and vaults excluded). Candidates come from the top 50 holders of each of ${board.tokens} official stock tokens; the top ${EXACT} are valued exactly from their full balances. Refreshed every 6 hours.`,
   };
 }

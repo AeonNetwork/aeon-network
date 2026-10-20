@@ -4,8 +4,10 @@
 //   CoinGecko  - ETH/USD only, to show fees and balances in dollars
 //   Cointelegraph RSS - news, filtered to Robinhood
 
-import { NETWORKS, BLOCKSCOUT, COINGECKO } from '../config.js';
+import { NETWORKS, BLOCKSCOUT, COINGECKO, CACHE_DIR } from '../config.js';
 import { cached } from '../lib/cache.js';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import path from 'node:path';
 
 export const upstream = {};
 const mark = (name, ok, error = '') => (upstream[name] = { ok, at: Date.now(), error });
@@ -127,7 +129,10 @@ const bsDown = (net) => {
   const f = bsFails[net];
   return f?.count >= 3 && Date.now() - f.at < 2 * 60_000;
 };
-export const blockscoutAvailable = (net) => BLOCKSCOUT.enabled && !bsDown(net);
+// When the PRO plan runs out of credits (HTTP 402), stop calling for a while instead of failing every request.
+const creditsOut = {};
+export const blockscoutCredits = (net) => (creditsOut[net] > Date.now() ? { out: true, until: creditsOut[net] } : { out: false });
+export const blockscoutAvailable = (net) => BLOCKSCOUT.enabled && !bsDown(net) && !(creditsOut[net] > Date.now());
 
 // Spaces out calls to one upstream so bursts (e.g. a token profile's 6 calls)
 // stay under its per-second limit instead of tripping 429s.
@@ -148,6 +153,8 @@ export async function bs(net, path, ttl) {
   const sep = path.includes('?') ? '&' : '?';
   const url = `${blockscoutBase(net)}${path}${usesPro(net) ? `${sep}apikey=${enc(BLOCKSCOUT.key)}` : ''}`;
   return cached(`bs:${net}:${path}`, ttl, async () => {
+    // Out of credits: don't call. The cache then serves the last good value (marked stale) if it has one.
+    if (creditsOut[net] > Date.now()) throw Object.assign(new Error('Blockscout credits exhausted'), { status: 503, credits: true });
     let data;
     try {
       await bsPace();
@@ -162,6 +169,11 @@ export async function bs(net, path, ttl) {
         } catch (err2) {
           err = err2;
         }
+      }
+      if (!data && err.httpStatus === 402) {
+        if (!(creditsOut[net] > Date.now())) console.error(`[blockscout] ${net}: out of credits, pausing calls for 30 min`);
+        creditsOut[net] = Date.now() + 30 * 60_000;
+        throw Object.assign(new Error('Blockscout credits exhausted'), { status: 503, credits: true });
       }
       if (!data) {
         // A 4xx/500 on one path is that path's problem; only outages count toward the breaker.
@@ -369,8 +381,31 @@ const mapStock = (t) => ({
   icon: t.icon_url,
 });
 
-export function stockTokens(net) {
-  return cached(`stocks:${net}`, 10 * 60_000, async () => {
+// The official stock-token list. Refreshed hourly (each refresh reads up to 16 Blockscout pages),
+// and the last good list is kept on disk so the app still knows which tokens are official when
+// Blockscout is out of credits or down, however long that lasts.
+const stockFile = (net) => path.join(CACHE_DIR, `stocks-${net}.json`);
+export async function stockTokens(net) {
+  try {
+    const r = await stockTokensLive(net);
+    if (r.value?.length) {
+      try {
+        mkdirSync(CACHE_DIR, { recursive: true });
+        writeFileSync(stockFile(net), JSON.stringify({ at: r.at, value: r.value }));
+      } catch {}
+    }
+    return r;
+  } catch (err) {
+    try {
+      const saved = JSON.parse(readFileSync(stockFile(net), 'utf8'));
+      return { value: saved.value, at: saved.at, stale: true };
+    } catch {
+      throw err;
+    }
+  }
+}
+function stockTokensLive(net) {
+  return cached(`stocks:${net}`, 60 * 60_000, async () => {
     const out = [];
     let params = '';
     for (let page = 0; page < 16; page++) {

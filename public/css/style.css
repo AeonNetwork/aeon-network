@@ -474,3 +474,10 @@ select.input.wh-select { width: auto; min-width: 160px; height: 34px; }
 .ae-perk p { margin: 0 0 10px; color: var(--ink-2); }
 .ae-perk ul { margin: 0 0 16px; padding-left: 18px; line-height: 1.9; }
 .ae-ok { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
+/* ---------- Network Pulse ---------- */
+.pu-head .box-body { padding: 22px; display: grid; gap: 14px; }
+.pu-headline { margin: 0; font-size: clamp(20px, 2.4vw, 28px); line-height: 1.35; font-weight: 600; letter-spacing: -0.02em; max-width: 980px; }
+.pu-h { margin: 28px 0 12px; font: 600 12px var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-3); }
+.pu-held { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.pu-held > div { display: flex; gap: 12px; align-items: baseline; }
+@media (max-width: 700px) { .pu-held { grid-template-columns: 1fr; } }

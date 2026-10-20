@@ -9,6 +9,7 @@ import { NETWORKS, INDEXER } from '../config.js';
 import * as chain from './chain.js';
 import * as eco from './ecosystem.js';
 import * as indexer from './indexer.js';
+import * as alc from './alchemy.js';
 import { aiHealth } from './ai.js';
 
 const ADDR = /^0x[0-9a-fA-F]{40}$/;
@@ -32,12 +33,33 @@ function safeLabel(symbol, name) {
   return { symbol: s.slice(0, 16), name: n.length > 48 ? n.slice(0, 47) + '…' : n };
 }
 
+// Token balances in Blockscout's shape: Blockscout first, Alchemy when Blockscout is out of
+// credits or down (Alchemy gives raw balances; names come from cached token metadata).
+async function balancesOf(net, addr) {
+  try {
+    return await eco.bs(net, `/addresses/${addr}/token-balances`, 5 * 60_000);
+  } catch (err) {
+    if (!alc.alchemyEnabled(net)) throw err;
+    const raw = await alc.tokenBalances(net, addr);
+    // Official stocks are already known; only other tokens need a metadata lookup.
+    const known = new Map((net === 'mainnet' ? (await eco.stockTokens(net).catch(() => ({ value: [] }))).value : []).map((x) => [x.address.toLowerCase(), x]));
+    const items = await Promise.all(
+      raw.slice(0, 120).map(async (b) => {
+        const k = known.get(b.address.toLowerCase());
+        const m = k ? { decimals: k.decimals ?? 18, symbol: k.symbol, name: k.name } : await alc.tokenMetadata(net, b.address).catch(() => ({}));
+        return { value: BigInt(b.raw).toString(), token: { address_hash: b.address, decimals: String(m.decimals ?? 18), symbol: m.symbol || null, name: m.name || null, type: 'ERC-20', exchange_rate: null, reputation: null } };
+      }),
+    );
+    return { value: items, at: Date.now(), stale: false, source: 'alchemy' };
+  }
+}
+
 // ---------------- wallet check: stock holdings & copycats ----------------
 
 export async function portfolio(net, addr) {
   if (!ADDR.test(addr)) throw bad('invalid address');
   const [balances, stocks, eth] = await Promise.all([
-    eco.bs(net, `/addresses/${addr}/token-balances`, 30_000),
+    balancesOf(net, addr),
     net === 'mainnet' ? eco.stockTokens(net).then((r) => r.value).catch(() => []) : [],
     chain.rpc(net, 'eth_getBalance', [addr, 'latest']).then((h) => BigInt(h).toString()).catch(() => null),
   ]);
@@ -133,7 +155,7 @@ export async function portfolioDetail(net, addr) {
   // Recent transfers of the five largest positions.
   const lower = addr.toLowerCase();
   const pages = await Promise.all(
-    base.holdings.slice(0, 5).map((h) => eco.bs(net, `/addresses/${addr}/token-transfers?token=${h.address}`, 60_000).then((r) => ({ h, items: r.value.items || [] })).catch(() => ({ h, items: [] }))),
+    (await activityOf(net, addr, base.holdings.slice(0, 5))).map((x) => x),
   );
   const activity = pages
     .flatMap(({ h, items }) =>
@@ -157,6 +179,24 @@ export async function portfolioDetail(net, addr) {
     activity,
     note: 'Balances from Blockscout; current prices from the official token list; 24 h change and history from CoinGecko hourly prices. History values your current positions at past prices.',
   };
+}
+
+// Stock-token transfers of a wallet: Alchemy (two calls for all tokens), Blockscout as fallback.
+async function activityOf(net, addr, holdings) {
+  if (!holdings.length) return [];
+  try {
+    const contracts = holdings.map((h) => h.address);
+    const [ins, outs] = await Promise.all([alc.transfers(net, { contracts, toAddress: addr, max: 100 }), alc.transfers(net, { contracts, fromAddress: addr, max: 100 })]);
+    const by = new Map(holdings.map((h) => [h.address.toLowerCase(), { h, items: [] }]));
+    for (const t of [...ins, ...outs]) {
+      const g = by.get((t.rawContract?.address || '').toLowerCase());
+      if (!g) continue;
+      g.items.push({ transaction_hash: t.hash, timestamp: t.metadata?.blockTimestamp, method: null, from: { hash: t.from }, to: { hash: t.to }, total: { value: BigInt(t.rawContract.value || '0x0').toString(), decimals: String(Number(t.rawContract.decimal ?? 18)) } });
+    }
+    return [...by.values()];
+  } catch {
+    return Promise.all(holdings.map((h) => eco.bs(net, `/addresses/${addr}/token-transfers?token=${h.address}`, 5 * 60_000).then((r) => ({ h, items: r.value.items || [] })).catch(() => ({ h, items: [] }))));
+  }
 }
 
 // A real, current example: the largest individual (non-contract) holder of the most-held stock token.
@@ -321,7 +361,12 @@ async function probe() {
   // Live probes: cheap real calls against each source.
   await Promise.all([
     ...Object.keys(NETWORKS).map((net) => timed(`rpc:${net}`, () => chain.rpc(net, 'eth_blockNumber'))),
-    timed('blockscout:mainnet', () => eco.bs('mainnet', '/stats', 50_000)),
+    // Every PRO call costs credits: refresh the probe every 5 minutes and report a credit stop as down.
+    timed('blockscout:mainnet', async () => {
+      if (eco.blockscoutCredits('mainnet').out) throw new Error('out of API credits');
+      const r = await eco.bs('mainnet', '/stats', 5 * 60_000);
+      if (r.stale) throw new Error('stale data');
+    }),
     timed('blockscout:testnet', () => eco.bs('testnet', '/stats', 50_000)),
   ]);
 }

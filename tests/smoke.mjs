@@ -90,6 +90,10 @@ await check('forged holder pass is rejected', async () => {
   const d = (await get('/api/aeon/pass', { headers: { 'x-aeon-pass': 'e30.forged' } })).body;
   assert(d.holder === false, 'forged pass accepted');
 });
+await check('network pulse', async () => {
+  const d = (await get('/api/network/mainnet/pulse')).body;
+  assert(d.headline && d.network?.block > 0 && d.economy, 'bad shape');
+});
 await check('address lookup', () => get(`/api/network/mainnet/address/${WETH}`));
 await check('search', () => get(`/api/network/mainnet/lookup?q=${WETH}`));
 for (const p of ['summary', 'protocols', 'tvl', 'dex', 'fees', 'stablecoins']) await check(`ecosystem ${p}`, () => get(`/api/ecosystem/mainnet/${p}`));
