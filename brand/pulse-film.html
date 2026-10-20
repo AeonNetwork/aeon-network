@@ -1,0 +1,193 @@
+<!doctype html>
+<!-- Network Pulse launch film (1920x1080, 30 s). A heartbeat (ECG) line that beats with the
+     chain, then the real Pulse page and real numbers. window.DATA = /api/network/mainnet/pulse,
+     window.SHOT = screenshot of the live page. Timed to brand/pulse-sound.mjs. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+const x = document.getElementById('c').getContext('2d');
+const D = window.DATA;
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const out = (k) => 1 - (1 - k) ** 3;
+const io = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2);
+const lerp = (a, b, k) => a + (b - a) * k;
+const money = (n) => (n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? '$' + (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? '$' + (n / 1e3).toFixed(1) + 'K' : '$' + n.toFixed(4));
+let seed = 99;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'].map((d) => new Path2D(d));
+const SPR = new OffscreenCanvas(1040, 940);
+{ const g = SPR.getContext('2d'); g.scale(5, 5); g.translate(-96, -106); g.fillStyle = '#fff'; AE.forEach((p) => g.fill(p)); }
+const mark = (cx, cy, h, a, glow = 0) => { if (a <= 0) return; const w = (208 / 188) * h; x.save(); x.globalAlpha = a; if (glow) (x.shadowColor = '#fff'), (x.shadowBlur = glow); x.drawImage(SPR, cx - w / 2, cy - h / 2, w, h); x.restore(); };
+const shot = new Image();
+const ready = new Promise((r) => (shot.onload = r));
+shot.src = window.SHOT;
+
+function text(str, px, py, size, { weight = 800, font = 'Geist', color = '#fff', alpha = 1, spacing = 0, align = 'center', blur = 0 } = {}) {
+  if (alpha <= 0) return;
+  x.save(); x.globalAlpha = alpha;
+  x.font = `${weight} ${size}px "${font}"`; x.letterSpacing = spacing + 'px';
+  x.textAlign = align; x.textBaseline = 'middle'; x.fillStyle = color;
+  if (blur > 0.3) x.filter = `blur(${blur}px)`;
+  x.fillText(str, px, py); x.restore();
+}
+function line(str, px, py, t, t0, t1, size, o = {}) {
+  const k = out(span(t, t0, t0 + 0.9)), a = k * (1 - span(t, t1 - 0.45, t1));
+  text(str, px, py + (1 - k) * 16, size, { ...o, alpha: a * (o.alpha ?? 1), blur: (1 - k) * 12, spacing: lerp((o.spacing ?? 0) + 16, o.spacing ?? 0, k) });
+}
+
+// ---------- ECG ----------
+// beat shape at phase u in [0,1): flat, small P wave, sharp QRS spike, T wave
+const beat = (u) => {
+  if (u < 0.1) return Math.sin((u / 0.1) * Math.PI) * 0.08;
+  if (u < 0.16) return 0;
+  if (u < 0.19) return -0.12 * ((u - 0.16) / 0.03);
+  if (u < 0.22) return lerp(-0.12, 1, (u - 0.19) / 0.03);
+  if (u < 0.26) return lerp(1, -0.35, (u - 0.22) / 0.04);
+  if (u < 0.3) return lerp(-0.35, 0, (u - 0.26) / 0.04);
+  if (u < 0.45) return Math.sin(((u - 0.3) / 0.15) * Math.PI) * 0.18;
+  return 0;
+};
+const BEATS = [0.9, 1.9, 2.8, 3.6, 4.3, 4.9, 5.4, 5.8, 6.15]; // the heart speeds up into the title
+function ecg(t, alpha, y0 = CY, amp = 220, period = 1.0) {
+  if (alpha <= 0) return;
+  const speed = 620; // px per second
+  const head = Math.min(W, (t - 0.3) * speed * 1.4);
+  x.save();
+  x.lineWidth = 3; x.lineJoin = 'round';
+  x.shadowColor = '#fff'; x.shadowBlur = 18;
+  x.beginPath();
+  for (let px = 0; px <= Math.max(0, head); px += 3) {
+    const ts = t - (head - px) / speed; // the time this point was drawn
+    let v = 0;
+    for (const b of BEATS) { const u = (ts - b) / 0.55; if (u >= 0 && u < 1) v = beat(u); }
+    const py = y0 - v * amp;
+    const fade = clamp(1 - (head - px) / 1500);
+    if (px === 0) x.moveTo(px, py); else x.lineTo(px, py);
+    x.strokeStyle = `rgba(255,255,255,${alpha})`;
+  }
+  x.globalAlpha = alpha; x.stroke();
+  // bright tracer dot
+  if (head > 0 && head < W) { x.fillStyle = '#fff'; x.beginPath(); x.arc(head, y0, 6, 0, Math.PI * 2); x.fill(); }
+  x.restore();
+}
+const P = Array.from({ length: 700 }, () => ({ x: rnd() * W, y: rnd() * H, b: 0.05 + rnd() * 0.3, s: 0.2 + rnd() }));
+
+function browser(t, t0, t1) {
+  const k = out(span(t, t0, t0 + 1.1)), a = k * (1 - span(t, t1 - 0.5, t1));
+  if (a <= 0) return;
+  const FW = 1080, FH = 660, FX = 760, FY = 200 + (1 - k) * 50;
+  x.save(); x.globalAlpha = a;
+  x.shadowColor = 'rgba(0,0,0,0.95)'; x.shadowBlur = 90; x.shadowOffsetY = 30;
+  x.fillStyle = '#0a0a0a'; x.fillRect(FX, FY, FW, FH); x.shadowColor = 'transparent';
+  x.strokeStyle = 'rgba(255,255,255,0.3)'; x.lineWidth = 1.5; x.strokeRect(FX + 0.5, FY + 0.5, FW - 1, FH - 1);
+  x.fillStyle = '#111'; x.fillRect(FX + 1, FY + 1, FW - 2, 42);
+  for (let i = 0; i < 3; i++) { x.strokeStyle = 'rgba(255,255,255,0.35)'; x.strokeRect(FX + 18 + i * 20, FY + 16, 10, 10); }
+  x.fillStyle = '#1a1a1a'; x.fillRect(FX + 130, FY + 10, FW - 260, 22);
+  text('🔒 getaeon.network/pulse', FX + FW / 2, FY + 22, 15, { weight: 500, font: 'Geist Mono', color: '#a3a3a3' });
+  const p = io(span(t, t0 + 0.8, t1 - 0.3));
+  const zoom = lerp(1, 1.18, p), vw = FW - 2, vh = FH - 44;
+  const sw = shot.width / zoom, sh = sw * (vh / vw);
+  x.beginPath(); x.rect(FX + 1, FY + 43, vw, vh); x.clip();
+  x.drawImage(shot, lerp(0, shot.width * 0.02, p), lerp(120, shot.height * 0.22, p), sw, sh, FX + 1, FY + 43, vw, vh);
+  x.restore();
+}
+function metric(px, py, w, h, label, value, change, a, glow) {
+  if (a <= 0) return;
+  x.save(); x.globalAlpha = a;
+  x.fillStyle = 'rgba(8,8,8,0.9)'; x.fillRect(px, py, w, h);
+  x.strokeStyle = `rgba(255,255,255,${0.28 + 0.5 * glow})`; x.lineWidth = 1.5; x.strokeRect(px + 0.5, py + 0.5, w - 1, h - 1);
+  if (glow > 0.02) { x.shadowColor = '#fff'; x.shadowBlur = 40 * glow; x.strokeRect(px + 0.5, py + 0.5, w - 1, h - 1); x.shadowBlur = 0; }
+  x.strokeStyle = '#fff'; x.lineWidth = 3;
+  x.beginPath(); x.moveTo(px, py + 20); x.lineTo(px, py); x.lineTo(px + 20, py); x.stroke();
+  x.restore();
+  text(label, px + 36, py + 50, 19, { font: 'Geist Mono', weight: 600, color: '#8a8a8a', align: 'left', spacing: 3, alpha: a });
+  text(value, px + 36, py + 128, 70, { font: 'Geist Mono', weight: 500, align: 'left', spacing: -2, alpha: a });
+  if (change == null) text('estimated from sampled blocks', px + 36, py + 196, 22, { font: 'Geist Mono', weight: 500, align: 'left', color: '#8a8a8a', alpha: a });
+  else text((change >= 0 ? '▲ ' : '▼ ') + Math.abs(change * 100).toFixed(1) + '% vs yesterday', px + 36, py + 196, 22, { font: 'Geist Mono', weight: 600, align: 'left', color: change >= 0 ? '#fff' : '#a3a3a3', alpha: a });
+}
+
+window.render = (t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.filter = 'none';
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  // grid like a monitor
+  x.strokeStyle = 'rgba(255,255,255,0.035)'; x.lineWidth = 1;
+  for (let gx = 0; gx <= W; gx += 60) { x.beginPath(); x.moveTo(gx, 0); x.lineTo(gx, H); x.stroke(); }
+  for (let gy = 0; gy <= H; gy += 60) { x.beginPath(); x.moveTo(0, gy); x.lineTo(W, gy); x.stroke(); }
+  for (const p of P) { x.fillStyle = `rgba(255,255,255,${p.b})`; x.fillRect((p.x + t * 10 * p.s) % W, p.y, 1.5, 1.5); }
+
+  // 1 · 0–6.8: the heartbeat
+  ecg(t, 1 - span(t, 6.4, 6.9), CY + 40, 230);
+  line('EVERY NETWORK HAS A PULSE.', CX, 250, t, 0.8, 3.6, 40, { weight: 700, font: 'Geist Mono', spacing: 6, color: '#cfcfcf' });
+  line("ROBINHOOD CHAIN'S BEATS 10 TIMES A SECOND.", CX, 250, t, 3.8, 6.6, 40, { weight: 700, font: 'Geist Mono', spacing: 6, color: '#cfcfcf' });
+
+  // 2 · 6.8–10.8: title
+  if (t >= 6.8 && t < 10.9) {
+    const k = out(span(t, 6.8, 7.6)), f = 1 - span(t, 10.4, 10.9);
+    mark(CX, CY - 170, 110, k * f, 40 * (1 - k) + 14);
+    line('NETWORK PULSE', CX, CY - 10, t, 7.0, 10.9, 160, { weight: 900, spacing: -5 });
+    line('ROBINHOOD CHAIN, TODAY', CX, CY + 100, t, 7.6, 10.9, 26, { weight: 600, font: 'Geist Mono', spacing: 10, color: '#9a9a9a' });
+    // a single beat under the title
+    x.save(); x.globalAlpha = f * 0.8; x.strokeStyle = '#fff'; x.lineWidth = 2; x.beginPath();
+    for (let px = 0; px <= W; px += 3) { const u = (px - CX + 160) / 320; const v = u >= 0 && u < 1 ? beat(u) : 0; px ? x.lineTo(px, CY + 200 - v * 90 * k) : x.moveTo(px, CY + 200); }
+    x.stroke(); x.restore();
+  }
+  if (t >= 6.8 && t < 7.3) (x.fillStyle = `rgba(255,255,255,${0.65 * (1 - span(t, 6.8, 7.3)) ** 2})`), x.fillRect(0, 0, W, H);
+
+  // 3 · 10.8–18: the real page
+  if (t >= 10.8 && t < 18.3) {
+    browser(t, 10.9, 18.3);
+    line('The whole network.', 100, 400, t, 11.2, 18.3, 60, { align: 'left', spacing: -2 });
+    line('One report.', 100, 476, t, 11.4, 18.3, 60, { align: 'left', spacing: -2, color: '#6b6b6b' });
+    line('Activity · money · stocks · whales', 100, 570, t, 12.0, 18.3, 24, { align: 'left', font: 'Geist Mono', weight: 500, color: '#a3a3a3' });
+    line('with the change since yesterday', 100, 610, t, 12.2, 18.3, 24, { align: 'left', font: 'Geist Mono', weight: 500, color: '#a3a3a3' });
+  }
+
+  // 4 · 18–25: real numbers, one per beat
+  if (t >= 18 && t < 25.3) {
+    line('Robinhood Chain, today.', CX, 190, t, 18.1, 25.3, 58, { spacing: -1.5 });
+    const n = D.network, e = D.economy;
+    const cells = [
+      ['TRANSACTIONS · 24H', n.txsDay ? (n.txsDay / 1e6).toFixed(2) + 'M' : (n.tps ? Math.round(n.tps) + ' TPS' : '—'), null],
+      ['DEX VOLUME · 24H', money(e.dex24h), e.dexChange],
+      ['VALUE LOCKED', money(e.tvl), e.tvlChange],
+      ['FEES · 24H', money(e.fees24h), e.feesChange],
+    ];
+    cells.forEach(([k, v, c], i) => {
+      const t0 = 18.6 + i * 0.6;
+      const kk = out(span(t, t0, t0 + 0.6)), a = kk * (1 - span(t, 24.8, 25.3));
+      const glow = t > t0 ? Math.exp(-(t - t0 - 0.2) / 0.5) : 0;
+      metric(170 + (i % 2) * 810, 300 + Math.floor(i / 2) * 290 + (1 - kk) * 24, 770, 250, k, v, c, a, glow);
+    });
+  }
+
+  // 5 · 25–30: end
+  if (t >= 25) {
+    const k = out(span(t, 25.2, 26.2)), f = 1 - span(t, 29.0, 29.8);
+    mark(CX, CY - 170, 100, k * f, 30 * (1 - k) + 12);
+    line('Take the pulse.', CX, CY - 10, t, 25.5, 29.8, 100, { spacing: -3 });
+    line('getaeon.network/pulse', CX, CY + 95, t, 26.1, 29.8, 30, { weight: 500, font: 'Geist Mono', spacing: 3, color: '#bdbdbd' });
+    ecg(t - 25 + 0.3, f * 0.35, CY + 230, 70);
+  }
+
+  // lens
+  const v = x.createRadialGradient(CX, CY, H * 0.3, CX, CY, H * 0.95);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.78)');
+  x.fillStyle = v; x.fillRect(0, 0, W, H);
+  const bar = 100 * out(span(t, 0, 1.2));
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, bar); x.fillRect(0, H - bar, W, bar);
+  const fo = span(t, 29.4, 30); if (fo > 0) (x.fillStyle = `rgba(0,0,0,${fo})`), x.fillRect(0, 0, W, H);
+};
+const fonts = ['500 10px Geist', '700 10px Geist', '800 10px Geist', '900 10px Geist', '400 10px "Geist Mono"', '500 10px "Geist Mono"', '600 10px "Geist Mono"', '700 10px "Geist Mono"'].map((f) => document.fonts.load(f));
+Promise.all([...fonts, ready]).then(() => (window.__ready = true));
+</script>
+</body>
+</html>
