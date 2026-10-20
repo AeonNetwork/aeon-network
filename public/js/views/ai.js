@@ -1,5 +1,6 @@
-import { state, prefs, net, esc, toast, short, $ } from '../core.js';
+import { state, prefs, net, on, esc, toast, short, $ } from '../core.js';
 import { markdown } from '../markdown.js';
+import { startOrb } from '../orb.js';
 
 const PROMPTS = [
   'What is happening on Robinhood Chain right now?',
@@ -23,6 +24,7 @@ export function render(main) {
   const prefill = state.aiPrompt || '';
   state.aiPrompt = null;
   let ctrl = null;
+  let orb = null;
 
   main.innerHTML = `
   <div class="page-head"><div><div class="kicker">${esc(net().name)} · Network AI</div><h1>Ask the network</h1></div><span class="dim" style="font-size:12px">${state.config.ai.providers.length ? 'Models: ' + state.config.ai.providers.map((p) => esc(p.name)).join(' → ') : 'Reads blocks, transactions, addresses and ecosystem data live'}</span></div>
@@ -45,6 +47,7 @@ export function render(main) {
 
   const empty = () => `
     <div class="empty-ai">
+      ${enabled ? '<div class="orb" aria-hidden="true"></div>' : ''}
       <h3>${enabled ? 'Ask anything about Robinhood Chain' : 'Network AI is not enabled yet'}</h3>
       <p>${enabled ? 'Paste a transaction hash, an address or a block number and the AI will look it up on-chain and explain it in plain language.' : 'Set <code>GEMINI_API_KEY</code>, <code>OPENROUTER_API_KEY</code> or <code>ANTHROPIC_API_KEY</code> in the server’s <code>.env</code> file and restart the server.'}</p></div>`;
 
@@ -53,7 +56,11 @@ export function render(main) {
       ? `<div class="msg user">${esc(m.content)}</div>`
       : `<div class="msg bot"><div class="av"></div><div>${m.tools?.length ? `<div class="tools-used">${m.tools.map(chip).join('')}</div>` : ''}<div class="md">${markdown(m.content)}</div>${m.by ? `<div class="dim" style="font-size:11px;margin-top:6px">answered by ${esc(m.by)}</div>` : ''}${m.sources?.length ? `<div class="sources">${m.sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.title)}">↗ ${esc(s.title)}</a>`).join('')}</div>` : ''}</div></div>`;
   const paint = () => {
+    orb?.destroy();
+    orb = null;
     log.innerHTML = history.length ? history.map(bubble).join('') : empty();
+    const el = log.querySelector('.orb');
+    if (el) orb = startOrb(el);
     log.scrollTop = log.scrollHeight;
   };
   const autosize = () => {
@@ -64,6 +71,12 @@ export function render(main) {
   async function ask(text) {
     text = text.trim();
     if (!text || ctrl || !enabled) return;
+    ctrl = new AbortController();
+    if (orb) {
+      await orb.collapse();
+      orb.destroy();
+      orb = null;
+    }
     history.push({ role: 'user', content: text });
     if (log.querySelector('.empty-ai')) log.innerHTML = '';
     log.insertAdjacentHTML('beforeend', bubble(history.at(-1)));
@@ -80,7 +93,6 @@ export function render(main) {
     const sources = [];
     const tools = [];
     let by = '';
-    ctrl = new AbortController();
     try {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
@@ -151,7 +163,8 @@ export function render(main) {
       ask(input.value);
     }
   });
-  input.addEventListener('input', autosize);
+  input.addEventListener('input', () => (autosize(), orb?.key()));
+  const off = on('block', ({ network }) => network === state.network && orb?.block());
   main.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => ask(b.dataset.p)));
   $('#clear', main).addEventListener('click', () => {
     ctrl?.abort();
@@ -166,5 +179,9 @@ export function render(main) {
     autosize();
     input.focus();
   }
-  return () => ctrl?.abort();
+  return () => {
+    ctrl?.abort();
+    orb?.destroy();
+    off();
+  };
 }
