@@ -1,0 +1,108 @@
+<!doctype html>
+<!-- Whale Tracker post image, 1600x900. ?v=launch (feature card) or ?v=alert (single whale
+     of the day). window.DATA = whales API response, window.PICK = the trade for ?v=alert. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255,255,255,0.14); --line-strong: rgba(255,255,255,0.34); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, sans-serif; -webkit-font-smoothing: antialiased; }
+  .frame { position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(70% 80% at 70% 50%, #141414 0%, #050505 60%, #000 100%); }
+  canvas { position: absolute; inset: 0; }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 20px; height: 20px; border: 0 solid var(--ink); z-index: 5; }
+  .ticks::before { left: 28px; top: 28px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 28px; bottom: 28px; border-bottom-width: 3px; border-right-width: 3px; }
+  .top { position: absolute; left: 70px; right: 70px; top: 60px; display: flex; justify-content: space-between; align-items: center; font: 600 15px 'Geist Mono', monospace; letter-spacing: 0.2em; }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand span { color: var(--ink-3); }
+  .brand svg { width: 28px; height: 25px; }
+  .tag { background: var(--ink); color: #000; padding: 7px 12px; }
+  .copy { position: absolute; left: 70px; top: 150px; width: 640px; display: grid; gap: 22px; }
+  h1 { margin: 0; font-size: 92px; line-height: 0.92; font-weight: 800; letter-spacing: -0.055em; }
+  h1 span { color: var(--ink-3); }
+  .lead { font-size: 23px; line-height: 1.5; color: var(--ink-2); margin: 0; }
+  .stats { position: absolute; left: 70px; bottom: 150px; display: flex; gap: 0; border: 1px solid var(--line-strong); }
+  .stats div { padding: 16px 24px; border-right: 1px solid var(--line); }
+  .stats div:last-child { border-right: 0; }
+  .stats span { display: block; font: 600 12px 'Geist Mono', monospace; letter-spacing: 0.14em; color: var(--ink-3); }
+  .stats b { display: block; margin-top: 8px; font: 500 30px 'Geist Mono', monospace; }
+  .url { position: absolute; left: 70px; bottom: 66px; display: flex; gap: 12px; align-items: center; font: 600 19px 'Geist Mono', monospace; }
+  .url b { background: var(--ink); color: #000; padding: 9px 15px; }
+  .feed { position: absolute; right: 70px; top: 150px; width: 700px; display: grid; gap: 12px; }
+  .row { display: grid; grid-template-columns: 82px 1fr auto; align-items: center; gap: 18px; padding: 16px 20px; border: 1px solid var(--line-strong); background: rgba(6,6,6,0.9); }
+  .row.hot { border-color: var(--ink); box-shadow: 0 0 40px rgba(255,255,255,0.18); }
+  .side { font: 600 14px 'Geist Mono', monospace; letter-spacing: 0.14em; text-align: center; padding: 7px 0; border: 1px solid var(--ink); }
+  .side.buy { background: var(--ink); color: #000; }
+  .row b { display: block; font: 600 21px 'Geist Mono', monospace; }
+  .row small { display: block; margin-top: 4px; font: 400 14px 'Geist Mono', monospace; color: var(--ink-3); }
+  .row .v { font: 600 28px 'Geist Mono', monospace; }
+  .stamp { position: absolute; right: 70px; bottom: 66px; font: 500 13px 'Geist Mono', monospace; color: var(--ink-3); letter-spacing: 0.1em; }
+  /* alert variant */
+  .alert { position: absolute; left: 70px; right: 70px; top: 170px; display: grid; gap: 18px; }
+  .alert .k { font: 600 18px 'Geist Mono', monospace; letter-spacing: 0.2em; color: var(--ink-2); }
+  .alert .big { font: 500 190px/0.9 'Geist Mono', monospace; letter-spacing: -0.06em; }
+  .alert .what { font-size: 54px; font-weight: 800; letter-spacing: -0.03em; }
+  .alert .what span { color: var(--ink-3); }
+  .alert .meta { font: 500 20px 'Geist Mono', monospace; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="frame ticks">
+  <canvas id="c"></canvas>
+  <div class="top">
+    <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
+    <div class="tag" id="tag"></div>
+  </div>
+  <div id="body"></div>
+  <div class="stamp" id="stamp"></div>
+</div>
+<script>
+  const D = window.DATA, v = new URLSearchParams(location.search).get('v') || 'launch';
+  const usd = (n) => (n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n / 1e3).toFixed(1) + 'K' : '$' + Math.round(n));
+  const short = (a) => a.slice(0, 6) + '…' + a.slice(-4);
+  const sh = (n) => n.toLocaleString('en-US', { maximumFractionDigits: n < 10 ? 2 : 1 });
+  document.getElementById('stamp').textContent = 'REAL DATA · ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+  const body = document.getElementById('body');
+  if (v === 'launch') {
+    document.getElementById('tag').textContent = 'NEW · WHALE TRACKER';
+    const trades = D.items.filter((w) => w.side === 'buy' || w.side === 'sell').sort((a, b) => b.usd - a.usd).slice(0, 5);
+    body.innerHTML = `
+      <div class="copy"><h1>Follow the<br /><span>whales.</span></h1><p class="lead">Every large buy and sell of tokenized stocks on Robinhood Chain, read from the chain every 90 seconds.</p></div>
+      <div class="stats"><div><span>WHALE TRADES · 24H</span><b>${D.summary.trades24h}</b></div><div><span>BOUGHT · 24H</span><b>${usd(D.summary.buyUsd24h)}</b></div><div><span>SOLD · 24H</span><b>${usd(D.summary.sellUsd24h)}</b></div></div>
+      <div class="url"><b>getaeon.network/#/whales</b></div>
+      <div class="feed">${trades.map((w, i) => `<div class="row ${i === 0 ? 'hot' : ''}"><div class="side ${w.side}">${w.side.toUpperCase()}</div><div><b>${w.symbol} · ${sh(w.shares)} shares</b><small>${short(w.wallet)}${w.venue ? ' · via ' + w.venue : ''}</small></div><div class="v">${usd(w.usd)}</div></div>`).join('')}</div>`;
+  } else {
+    const w = window.PICK;
+    document.getElementById('tag').textContent = 'WHALE ALERT';
+    body.innerHTML = `
+      <div class="alert">
+        <div class="k">${w.side === 'buy' ? 'WHALE BUY' : 'WHALE SELL'} · ROBINHOOD CHAIN</div>
+        <div class="big">${usd(w.usd)}</div>
+        <div class="what">${w.side === 'buy' ? 'Bought' : 'Sold'} ${sh(w.shares)} ${w.symbol} <span>· ${w.name}</span></div>
+        <div class="meta">Wallet ${short(w.wallet)}${w.venue ? ' · via ' + w.venue : ''} · tx ${short(w.tx)}</div>
+      </div>
+      <div class="url"><b>getaeon.network/#/whales</b></div>`;
+  }
+  // sonar rings
+  const c = document.getElementById('c'), x = c.getContext('2d');
+  c.width = 3200; c.height = 1800; c.style.width = '1600px'; c.style.height = '900px'; x.scale(2, 2);
+  const cx = v === 'launch' ? 1180 : 1270, cy = v === 'launch' ? 470 : 430;
+  for (let i = 1; i <= 6; i++) {
+    x.strokeStyle = `rgba(255,255,255,${(v === 'launch' ? 0.16 : 0.32) - i * (v === 'launch' ? 0.022 : 0.045)})`; x.lineWidth = 1.5;
+    x.beginPath(); x.ellipse(cx, cy, 140 * i, 60 * i, 0, 0, Math.PI * 2); x.stroke();
+  }
+  if (v !== 'launch') {
+    const g = x.createRadialGradient(cx, cy, 0, cx, cy, 90);
+    g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(0.15, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(cx - 90, cy - 90, 180, 180);
+    x.strokeStyle = 'rgba(255,255,255,0.25)'; x.beginPath(); x.moveTo(cx - 520, cy); x.lineTo(cx + 520, cy); x.moveTo(cx, cy - 230); x.lineTo(cx, cy + 230); x.stroke();
+  }
+  let s = 11;
+  const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 500; i++) { x.fillStyle = `rgba(255,255,255,${0.05 + r() * 0.3})`; x.fillRect(r() * 1600, r() * 900, 1.4, 1.4); }
+  document.fonts.ready.then(() => (window.__ready = true));
+</script>
+</body>
+</html>
