@@ -5,3 +5,4 @@ node_modules/
 .cloudflare-token
 brand/aeon-x-pons.mp4
 .maintenance
+.hf-token
