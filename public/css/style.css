@@ -338,3 +338,10 @@ table.tbl { width: 100%; border-collapse: collapse; }
   .prose { padding: 4px 14px 16px; }
 }
 .legal > section { scroll-margin-top: calc(var(--topbar-h) + 16px); }
+/* Server-rendered snapshot shown before the app loads (and to crawlers). */
+.prerender { margin-top: 24px; }
+.prerender .box-body { padding: 22px; }
+.prerender h1 { font-size: 28px; letter-spacing: -0.03em; margin: 0 0 8px; }
+.prerender h2 { font-size: 16px; margin: 22px 0 8px; }
+.prerender p, .prerender li { color: var(--ink-2); }
+.prerender .kv { margin: 16px 0; border-top: 1px solid var(--line); }

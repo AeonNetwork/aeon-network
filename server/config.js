@@ -88,6 +88,13 @@ const PROVIDERS = {
     model: env.GEMINI_MODEL || 'gemini-3.5-flash',
     baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
   },
+  // Same Gemini key, lighter model: the free tier counts quota per model, so this doubles capacity.
+  'gemini-lite': {
+    label: 'Gemini Lite',
+    key: env.GEMINI_API_KEY || '',
+    model: env.GEMINI_LITE_MODEL || 'gemini-3.5-flash-lite',
+    baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
+  },
   openrouter: {
     label: 'OpenRouter',
     key: env.OPENROUTER_API_KEY || '',
@@ -95,7 +102,7 @@ const PROVIDERS = {
     baseURL: 'https://openrouter.ai/api/v1',
   },
 };
-const order = list(env.AI_PROVIDERS || 'anthropic,gemini,openrouter').filter((p) => PROVIDERS[p]?.key);
+const order = list(env.AI_PROVIDERS || 'anthropic,gemini,gemini-lite,openrouter').filter((p) => PROVIDERS[p]?.key);
 
 export const AI = {
   providers: order.map((name) => ({ name, ...PROVIDERS[name] })),

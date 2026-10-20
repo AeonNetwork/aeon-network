@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import compression from 'compression';
@@ -399,8 +400,62 @@ app.get('/sitemap.xml', (req, res) => {
 app.use('/api', (req, res) => res.status(404).json({ error: 'not found' }));
 
 // maxAge 0: browsers revalidate via ETag, so updates show up immediately.
+// ---------------- live snapshot in the HTML ----------------
+// The app renders with JavaScript, so crawlers and checkers that do not run JS would
+// see an empty page. The shell therefore ships a snapshot of real chain data, which
+// the app replaces on load. Rebuilt at most every 15 s.
+const INDEX_HTML = readFileSync(path.join(here, '..', 'public', 'index.html'), 'utf8');
+const unwrap = (x) => (x && typeof x === 'object' && 'value' in x && 'at' in x ? x.value : x);
+const num = (v, d = 0) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d }));
+let snapshot = { at: 0, html: '' };
+async function snapshotHtml() {
+  if (Date.now() - snapshot.at < 15_000) return snapshot.html;
+  const n = 'mainnet';
+  const ex = NETWORKS[n].explorer;
+  const [bn, gas, price, stats, summary, stocks] = await Promise.all([
+    settle(value(chain.blockNumber(n))),
+    settle(value(chain.gasPrice(n))),
+    settle(value(eco.ethPrice())),
+    settle(eco.chainStats(n)),
+    settle(eco.chainSummary(n)),
+    settle(eco.stockTokens(n)),
+  ]).then((r) => r.map(unwrap));
+  const ix = indexer.summary(n);
+  const transfer = gas && price?.usd ? (gas * 21_000 * price.usd) / 1e18 : null;
+  const rows = [
+    ['Latest block', bn ? `<a href="${escHtml(ex)}/block/${bn}">#${num(bn)}</a>` : '—'],
+    ['Block time', stats?.averageBlockTimeMs ? `${num(stats.averageBlockTimeMs)} ms` : ix?.blockTime ? `${num(ix.blockTime * 1000)} ms` : '—'],
+    ['Transactions per second', stats?.transactionsToday ? `${num(stats.transactionsToday / 86_400, 1)} (24 h average, Blockscout)` : ix?.tps ? `${num(ix.tps, 1)} (estimated from sampled blocks)` : '—'],
+    ['Gas price', gas ? `${num(gas / 1e9, 4)} gwei` : '—'],
+    ['ETH transfer cost', transfer != null ? `$${transfer.toFixed(4)}` : '—'],
+    ['Transactions, last day', num(stats?.transactionsToday)],
+    ['Total transactions', num(stats?.totalTransactions)],
+    ['Total addresses', num(stats?.totalAddresses)],
+    ['Total value locked', summary?.tvl ? `$${num(summary.tvl)}${summary.rank ? ` (#${summary.rank} of ${summary.chains} chains, DefiLlama)` : ''}` : '—'],
+  ];
+  const top = (Array.isArray(stocks) ? stocks : []).filter((s) => s.holders).sort((a, b) => b.holders - a.holders).slice(0, 5);
+  const html = `
+  <section class="box prerender" aria-label="Live snapshot of Robinhood Chain">
+    <div class="box-head">Robinhood Chain mainnet · live snapshot · ${escHtml(new Date().toISOString().slice(0, 19).replace('T', ' '))} UTC</div>
+    <div class="box-body">
+      <h1>The live hub for Robinhood Chain</h1>
+      <p>Aeon Network reads Robinhood Chain (chain ID ${NETWORKS[n].chainId}) directly: every block, transaction, tokenized stock and protocol, as it happens. Every figure below is real and links to its source.</p>
+      <dl class="kv">${rows.map(([k, v]) => `<dt>${escHtml(k)}</dt><dd>${v}</dd>`).join('')}</dl>
+      ${top.length ? `<h2>Most-held tokenized stocks</h2><ol>${top.map((s) => `<li><a href="${escHtml(ex)}/token/${escHtml(s.address)}">${escHtml(s.symbol)}</a> · ${escHtml(s.name)} · ${num(s.holders)} holders${s.price ? ` · $${num(s.price, 2)}` : ''}</li>`).join('')}</ol>` : ''}
+      <p>Sources: Robinhood Chain RPC, <a href="${escHtml(ex)}">Blockscout</a>, DefiLlama, CoinGecko. Live view, explorer, stock-token verification and network AI load with JavaScript.</p>
+    </div>
+  </section>`;
+  snapshot = { at: Date.now(), html };
+  return html;
+}
+const sendShell = async (req, res) => {
+  const html = await snapshotHtml().catch(() => '');
+  res.set('cache-control', 'no-cache').type('html').send(INDEX_HTML.replace('<main id="view" tabindex="-1"></main>', () => `<main id="view" tabindex="-1">${html}</main>`));
+};
+app.get(['/', '/index.html'], sendShell);
+
 app.use(express.static(path.join(here, '..', 'public'), { extensions: ['html'], maxAge: 0 }));
-app.get('/{*splat}', (req, res) => res.sendFile(path.join(here, '..', 'public', 'index.html')));
+app.get('/{*splat}', sendShell);
 
 // Last-resort error handler: never leak stack traces to visitors.
 app.use((err, req, res, next) => {

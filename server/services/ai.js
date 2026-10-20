@@ -84,14 +84,20 @@ async function runTool(name, input) {
   switch (name) {
     case 'get_network_overview': {
       const net = input.network;
-      const [bn, gas, stats] = await Promise.allSettled([chain.blockNumber(net), chain.gasPrice(net), eco.explorerStats(net)]);
+      const [bn, gas, stats, price] = await Promise.allSettled([chain.blockNumber(net), chain.gasPrice(net), eco.explorerStats(net), eco.ethPrice()]);
       const top = indexer.indexing(net) ? indexer.topContracts(net, 24, 10) : [];
       for (const c of top) c.token = await chain.tokenMeta(net, c.address).then((m) => m.symbol).catch(() => null);
+      // Pre-computed so the model quotes the fee instead of doing unit conversions itself.
+      const gasWei = val(gas)?.value;
+      const ethUsd = val(price)?.value?.usd ?? null;
+      const transferEth = gasWei ? (gasWei * 21_000) / 1e18 : null;
       return {
         network: NETWORKS[net].name,
         chainId: NETWORKS[net].chainId,
         latestBlock: val(bn)?.value ?? indexer.summary(net)?.lastBlock ?? 'unavailable',
-        gasPriceGwei: val(gas) ? val(gas).value / 1e9 : val(stats)?.gasPrices ?? 'unavailable',
+        gasPriceGwei: gasWei ? gasWei / 1e9 : val(stats)?.gasPrices ?? 'unavailable',
+        ethUsd,
+        ethTransferCost: transferEth == null ? 'unavailable' : { gas: 21_000, eth: transferEth, usd: ethUsd ? transferEth * ethUsd : null, note: 'Plain ETH transfer at the current gas price. Quote these numbers directly.' },
         blockscout: val(stats) ?? 'unavailable',
         indexer: indexer.summary(net),
         mostCalledContractsSampled: top,
@@ -335,21 +341,30 @@ export async function chat(req, res) {
   res.on('close', () => ctrl.abort());
 
   let lastErr;
-  for (const provider of AI.providers) {
-    if (ctrl.signal.aborted) break;
-    try {
-      emit('provider', { name: provider.label, model: provider.model });
-      const model = provider.name === 'anthropic' ? await runAnthropic(provider, messages, emit, ctrl.signal) : await runCompatible(provider, messages, emit, ctrl.signal);
-      markAi(provider.name, true);
-      emit('done', { provider: provider.label, model });
-      return res.end();
-    } catch (err) {
-      lastErr = err;
-      if (err.name !== 'AbortError') markAi(provider.name, false, err.message);
-      console.error(`[ai:${provider.name}]`, err.status || '', err.message);
-      // Switching providers mid-answer would garble the reply; only fail over before any text.
-      if (answered || !retryable(err)) break;
-      emit('status', { text: `${provider.label} unavailable, trying another model…` });
+  providers: for (const provider of AI.providers) {
+    // An overloaded provider (5xx) usually recovers within seconds: retry it once before failing over.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (ctrl.signal.aborted) break providers;
+      try {
+        emit('provider', { name: provider.label, model: provider.model });
+        const model = provider.name === 'anthropic' ? await runAnthropic(provider, messages, emit, ctrl.signal) : await runCompatible(provider, messages, emit, ctrl.signal);
+        markAi(provider.name, true);
+        emit('done', { provider: provider.label, model });
+        return res.end();
+      } catch (err) {
+        lastErr = err;
+        if (err.name !== 'AbortError') markAi(provider.name, false, err.message);
+        console.error(`[ai:${provider.name}]`, err.status || '', err.message);
+        // Switching providers mid-answer would garble the reply; only retry or fail over before any text.
+        if (answered || !retryable(err)) break providers;
+        if (attempt === 0 && err.status >= 500) {
+          emit('status', { text: `${provider.label} is busy, retrying…` });
+          await new Promise((r) => setTimeout(r, 1500));
+          continue;
+        }
+        emit('status', { text: `${provider.label} unavailable, trying another model…` });
+        break;
+      }
     }
   }
   if (!ctrl.signal.aborted) {
