@@ -43,6 +43,9 @@ const TITLES = {
   notfound: 'Not found · Aeon Network',
 };
 
+// Clean share links (/whales, /portfolio, ...) open the matching #/ route.
+if (!location.hash && /^\/[a-z]+\/?$/.test(location.pathname)) history.replaceState(null, '', '/#/' + location.pathname.replace(/\//g, ''));
+
 let cleanup = null;
 async function route() {
   const [, name = '', ...rest] = location.hash.replace(/^#/, '').split('/');

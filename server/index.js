@@ -520,11 +520,35 @@ const BUILD = (() => {
 const SHELL = INDEX_HTML.replace('href="/css/style.css"', `href="/b/${BUILD}/css/style.css"`).replace('src="/js/app.js"', `src="/b/${BUILD}/js/app.js"`);
 app.use('/b/:build', express.static(PUBLIC, { immutable: true, maxAge: '365d', index: false }));
 
+// Link previews per page. Crawlers never see "#/whales" (the part after # is not sent), so
+// shareable links are clean paths like /whales: crawlers get that page's title and image,
+// and the app opens the matching #/ route for people.
+const PAGES = {
+  '': ['Aeon Network · The live hub for Robinhood Chain', 'Every block, every tokenized stock, every whale and an AI that reads the chain. Real data, nothing mocked.', 'home'],
+  whales: ['Whale Tracker · Aeon Network', 'Every large buy and sell of tokenized stocks on Robinhood Chain, read from the chain every 90 seconds.', 'whales'],
+  portfolio: ['Portfolio · Aeon Network', "Any wallet's tokenized stocks, valued live: today's gain or loss, 7-day history, every trade. Fakes flagged.", 'portfolio'],
+  stocks: ['Tokenized Stocks · Aeon Network', 'All official ERC-8056 stock tokens on Robinhood Chain, and a check that tells them from copycats.', 'stocks'],
+  ai: ['Network AI · Aeon Network', 'Ask anything about Robinhood Chain. The AI reads blocks, wallets and tokens before it answers.', 'ai'],
+  changelog: ["What's new · Aeon Network", 'Every Aeon Network release, newest first.', 'changelog'],
+};
+const shellFor = (page, origin, reqPath) => {
+  const [title, desc, img] = PAGES[page] ?? PAGES[''];
+  const image = `${origin}/img/og/${img}.png?v=${BUILD}`;
+  const url = origin + reqPath;
+  let html = SHELL.replace(/<title>[^<]*<\/title>/, () => `<title>${escHtml(title)}</title>`)
+    .replace(/<meta property="og:title" content="[^"]*" \/>/, () => `<meta property="og:title" content="${escHtml(title)}" />`)
+    .replace(/<meta property="og:description" content="[^"]*" \/>/, () => `<meta property="og:description" content="${escHtml(desc)}" />`)
+    .replace(/<meta property="og:url" content="[^"]*" \/>/, () => `<meta property="og:url" content="${escHtml(url)}" />`)
+    .replace(/<meta property="og:image" content="[^"]*" \/>/, () => `<meta property="og:image" content="${escHtml(image)}" />\n  <meta property="og:image:width" content="1200" />\n  <meta property="og:image:height" content="630" />\n  <meta name="twitter:title" content="${escHtml(title)}" />\n  <meta name="twitter:description" content="${escHtml(desc)}" />\n  <meta name="twitter:image" content="${escHtml(image)}" />`);
+  return html;
+};
 const sendShell = async (req, res) => {
   const html = await snapshotHtml().catch(() => '');
-  res.set('cache-control', 'no-cache').type('html').send(SHELL.replace('<main id="view" tabindex="-1"></main>', () => `<main id="view" tabindex="-1">${html}</main>`));
+  const page = req.path.replace(/^\/+|\/+$/g, '').toLowerCase();
+  res.set('cache-control', 'no-cache').type('html').send(shellFor(page, `https://${req.get('host')}`, req.path).replace('<main id="view" tabindex="-1"></main>', () => `<main id="view" tabindex="-1">${html}</main>`));
 };
 app.get(['/', '/index.html'], sendShell);
+app.get(Object.keys(PAGES).filter(Boolean).map((p) => '/' + p), sendShell);
 
 // Unversioned paths (images, manifest, old links) still work: revalidated on every load.
 app.use(express.static(PUBLIC, { extensions: ['html'], index: false, setHeaders: (res) => res.set('cache-control', 'no-cache') }));
