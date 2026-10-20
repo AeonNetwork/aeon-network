@@ -1,0 +1,136 @@
+<!doctype html>
+<!-- Key visual poster, 1080x1350 (4:5). Live numbers are injected as window.DATA. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255,255,255,0.14); --line-strong: rgba(255,255,255,0.32); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, sans-serif; -webkit-font-smoothing: antialiased; }
+  .frame { position: relative; width: 1080px; height: 1350px; overflow: hidden; background: radial-gradient(70% 45% at 50% 40%, #161616 0%, #050505 60%, #000 100%); }
+  canvas { position: absolute; inset: 0; }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 22px; height: 22px; border: 0 solid var(--ink); z-index: 3; }
+  .ticks::before { left: 32px; top: 32px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 32px; bottom: 32px; border-bottom-width: 3px; border-right-width: 3px; }
+  .top { position: absolute; left: 70px; right: 70px; top: 76px; display: flex; justify-content: space-between; align-items: center; font: 600 17px 'Geist Mono', monospace; letter-spacing: 0.2em; }
+  .top .brand { display: flex; align-items: center; gap: 12px; }
+  .top .brand span { color: var(--ink-3); }
+  .top svg { width: 30px; height: 27px; }
+  .live { color: var(--ink-2); }
+  .live::before { content: ''; display: inline-block; width: 9px; height: 9px; background: var(--ink); margin-right: 10px; vertical-align: 1px; }
+  .copy { position: absolute; left: 70px; right: 70px; top: 818px; }
+  h1 { margin: 0; font-size: 104px; line-height: 0.93; font-weight: 800; letter-spacing: -0.055em; }
+  h1 span { color: var(--ink-3); }
+  .stats { position: absolute; left: 70px; right: 70px; top: 1070px; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line-strong); }
+  .stats div { padding: 18px 18px 20px; border-right: 1px solid var(--line); }
+  .stats div:last-child { border-right: 0; }
+  .stats span { display: block; font: 600 12.5px 'Geist Mono', monospace; letter-spacing: 0.14em; color: var(--ink-3); text-transform: uppercase; }
+  .stats b { display: block; margin-top: 10px; font: 500 28px 'Geist Mono', monospace; letter-spacing: -0.03em; }
+  .foot { position: absolute; left: 70px; right: 70px; bottom: 70px; display: flex; justify-content: space-between; align-items: center; font: 600 18px 'Geist Mono', monospace; }
+  .foot b { background: var(--ink); color: #000; padding: 9px 14px; font-weight: 600; }
+  .foot i { font-style: normal; color: var(--ink-3); font-weight: 500; font-size: 14px; letter-spacing: 0.06em; }
+</style>
+</head>
+<body>
+<div class="frame ticks">
+  <canvas id="c"></canvas>
+  <div class="top">
+    <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
+    <div class="live">LIVE · ROBINHOOD CHAIN</div>
+  </div>
+  <div class="copy"><h1>Every block.<br /><span>As it happens.</span></h1></div>
+  <div class="stats" id="stats"></div>
+  <div class="foot"><b>getaeon.network</b><i id="stamp"></i></div>
+</div>
+<script>
+  const D = window.DATA;
+  const fmt = (n) => Number(n).toLocaleString('en-US');
+  const compact = (n) => (n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : fmt(n));
+  document.getElementById('stats').innerHTML = [
+    ['Latest block', '#' + fmt(D.block)],
+    ['Tx · 24 h', compact(D.txToday)],
+    ['Stock tokens', fmt(D.stocks)],
+    ['TVL', '$' + compact(D.tvl)],
+  ].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+  document.getElementById('stamp').textContent = `REAL DATA · ${D.capturedAt}`;
+
+  const W = 1080, H = 1350, dpr = 2;
+  const c = document.getElementById('c');
+  c.width = W * dpr; c.height = H * dpr; c.style.width = W + 'px'; c.style.height = H + 'px';
+  const x = c.getContext('2d');
+  x.scale(dpr, dpr);
+  let seed = 93;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const rand = (a, b) => a + rnd() * (b - a);
+
+  // background stars
+  for (let i = 0; i < 700; i++) {
+    x.fillStyle = `rgba(255,255,255,${rand(0.05, 0.35)})`;
+    const s = rand(0.6, 1.6);
+    x.fillRect(rnd() * W, rnd() * H, s, s);
+  }
+
+  // the ring (3D ellipse) around the mark
+  const cx = W / 2, cy = 545, R = 430, tilt = 0.3;
+  const P = (a, r = 1, y = 0) => {
+    const X = Math.cos(a) * r, Z = Math.sin(a) * r;
+    const Y = y * Math.cos(tilt) + Z * Math.sin(tilt);
+    const z = y * Math.sin(tilt) + Z * Math.cos(tilt);
+    const s = 5 / (5 + z);
+    return { x: cx + X * R * s, y: cy + Y * R * s, z, s };
+  };
+  const draw = (back) => {
+    for (let i = 0; i < 5200; i++) {
+      const a = rand(0, Math.PI * 2);
+      const p = P(a, 1 + (rnd() < 0.8 ? rand(-0.025, 0.025) : rand(-0.07, 0.07)), rand(-0.01, 0.01));
+      if ((p.z > 0) !== back) continue;
+      const head = Math.max(0, 1 - Math.abs(((a - 0.9 + Math.PI * 3) % (Math.PI * 2)) - Math.PI) / 0.5);
+      const depth = Math.max(0, Math.min(1, 0.6 - p.z * 0.5));
+      x.fillStyle = `rgba(255,255,255,${Math.min(1, (0.12 + depth * 0.6) * rand(0.4, 1) + head * 0.8)})`;
+      const s = (head > 0.3 ? 2.2 : 1.4) * p.s;
+      x.fillRect(p.x, p.y, s, s);
+    }
+  };
+  // blocks rising from the ring, sized like transactions
+  const tree = (a, h) => {
+    let p0 = { a, y: 0 };
+    let dx = 0, dy = -1;
+    let X = Math.cos(a), Z = Math.sin(a), Y = 0;
+    for (let i = 0; i < 70 * h; i++) {
+      dx += rand(-0.06, 0.06); dy += rand(-0.03, 0.03);
+      const n = Math.hypot(dx, dy); dx /= n; dy /= n;
+      X += dx * 0.012; Y += dy * 0.012;
+      for (let k = 0; k < 3; k++) {
+        const z0 = Z, ang = Math.atan2(z0, X), r = Math.hypot(X, z0);
+        const p = P(ang, r, Y + rand(-0.004, 0.004));
+        x.fillStyle = `rgba(255,255,255,${rand(0.3, 0.85)})`;
+        x.fillRect(p.x + rand(-1.5, 1.5), p.y, 1.4, 1.4);
+      }
+    }
+  };
+  draw(true);
+  // glow + mark
+  const g = x.createRadialGradient(cx, cy - 10, 0, cx, cy - 10, 330);
+  g.addColorStop(0, 'rgba(255,255,255,0.20)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'];
+  const h = 250, s = h / 188;
+  x.save();
+  x.translate(cx - (208 * s) / 2, cy - 20 - h / 2);
+  x.scale(s, s); x.translate(-96, -106);
+  x.fillStyle = '#fff'; x.shadowColor = 'rgba(255,255,255,0.9)'; x.shadowBlur = 40;
+  AE.forEach((d) => x.fill(new Path2D(d)));
+  x.shadowBlur = 0;
+  AE.forEach((d) => x.fill(new Path2D(d)));
+  x.restore();
+  [0.9, 0.6, 1.25, 2.3, 2.9, 0.2, 3.6].forEach((a, i) => tree(a, [1.2, 0.7, 0.9, 0.5, 0.8, 0.45, 0.6][i]));
+  draw(false);
+  // anamorphic flare across the mark
+  const f = x.createLinearGradient(0, 0, W, 0);
+  f.addColorStop(0, 'rgba(255,255,255,0)'); f.addColorStop(0.5, 'rgba(255,255,255,0.7)'); f.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = f; x.fillRect(0, cy - 21, W, 2);
+  window.__ready = true;
+</script>
+</body>
+</html>
