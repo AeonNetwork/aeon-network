@@ -17,6 +17,7 @@ Every block, every tokenized stock and an AI that answers straight from the chai
 | 03 | **Stocks & stock check** | All ~200 official ERC-8056 stock tokens with holders, market cap and volume, a market-cap map, and a checker that tells the official token from look-alikes. |
 | 04 | **Network AI** | Reads blocks, transactions, wallets and tokens before it answers. Paste a hash or address and get it explained in plain language. Fails over across Gemini, Gemini Lite and OpenRouter. |
 | 05 | **Whale tracker** | Large buys and sells of official stock tokens, read from the chain every 90 s. Swaps routed through pools are netted per wallet. Filter by size, stock and side; every whale links to its portfolio. |
+| 06 | **Leaderboard** | The 50 largest tokenized-stock portfolios on Robinhood Chain (individual wallets only), refreshed every 30 minutes, each linking to its portfolio. |
 | | **Explorer** | Search, blocks, decoded transactions, addresses and token profiles, cross-checked between RPC and Blockscout. |
 | | **Wallet tools** | Wallet check (holdings, copycats, risky approvals with revoke), watchlist with alerts, add Robinhood Chain to your wallet. Wallet connection is always optional. |
 | | **Aeon RPC** | A public, rate-limited JSON-RPC endpoint: `https://getaeon.network/rpc/mainnet` |

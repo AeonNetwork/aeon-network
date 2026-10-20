@@ -16,6 +16,7 @@ import * as eco from './services/ecosystem.js';
 import { chat, tokenUniverse } from './services/ai.js';
 import * as insights from './services/insights.js';
 import * as whales from './services/whales.js';
+import * as board from './services/leaderboard.js';
 
 installDoh();
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -311,6 +312,13 @@ app.get(
     return whales.whales({ min, side, symbol });
   }, 20),
 );
+app.get(
+  '/api/network/:net/leaderboard',
+  api((req) => {
+    if (net(req) !== 'mainnet') throw Object.assign(new Error('Stock tokens live on mainnet'), { status: 404 });
+    return board.leaderboard();
+  }, 60),
+);
 app.get('/api/network/:net/portfolio-example', api((req) => insights.portfolioExample(net(req)), 300));
 app.get('/api/network/:net/approvals/:addr', api((req) => insights.approvals(net(req), req.params.addr), 20));
 app.get('/api/network/:net/crosscheck/:kind/:id', api((req) => insights.crosscheck(net(req), req.params.kind, req.params.id), 0));
@@ -529,6 +537,7 @@ const PAGES = {
   portfolio: ['Portfolio · Aeon Network', "Any wallet's tokenized stocks, valued live: today's gain or loss, 7-day history, every trade. Fakes flagged.", 'portfolio'],
   stocks: ['Tokenized Stocks · Aeon Network', 'All official ERC-8056 stock tokens on Robinhood Chain, and a check that tells them from copycats.', 'stocks'],
   ai: ['Network AI · Aeon Network', 'Ask anything about Robinhood Chain. The AI reads blocks, wallets and tokens before it answers.', 'ai'],
+  leaderboard: ['Top holders · Aeon Network', 'The 50 largest tokenized-stock portfolios on Robinhood Chain, ranked by live value.', 'leaderboard'],
   changelog: ["What's new · Aeon Network", 'Every Aeon Network release, newest first.', 'changelog'],
 };
 const shellFor = (page, origin, reqPath) => {
@@ -575,6 +584,7 @@ for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => (saveToDisk(), pr
 indexer.startIndexer();
 insights.startStatus();
 whales.startWhales();
+board.startLeaderboard();
 // Warm ecosystem data in the background, staggered.
 setTimeout(() => eco.chainSummary('mainnet').catch(() => {}), 2000);
 setTimeout(() => eco.protocols('mainnet').catch(() => {}), 4000);

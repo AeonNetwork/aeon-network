@@ -4,6 +4,19 @@ import { esc } from '../core.js';
 export const RELEASES = [
   {
     date: 'Oct 21, 2026',
+    tag: 'Update 2',
+    title: 'Holder leaderboard',
+    items: [
+      'The 50 largest tokenized-stock portfolios on Robinhood Chain, ranked by live value',
+      'Built from the top holders of every official stock token, then valued exactly from each wallet',
+      'Individual wallets only: pools, vaults and contracts are left out',
+      'Rank changes since the last update, a podium for the top three, every wallet opens its portfolio',
+      'Clean share links with their own preview image: getaeon.network/whales, /portfolio, /leaderboard',
+    ],
+    link: ['#/leaderboard', 'Open Leaderboard'],
+  },
+  {
+    date: 'Oct 21, 2026',
     tag: 'Big update',
     title: 'Whale tracker',
     items: [
@@ -58,7 +71,7 @@ export function render(main) {
     <div class="changelog">
       ${RELEASES.map(
         (r) => `<section class="box reveal mt">
-          <div class="box-head"><span>${esc(r.date)}</span><span class="right"><span class="tag ${r.tag === 'New' || r.tag === 'Big update' ? 'solid' : ''}">${esc(r.tag)}</span></span></div>
+          <div class="box-head"><span>${esc(r.date)}</span><span class="right"><span class="tag ${['New', 'Big update', 'Update 2'].includes(r.tag) ? 'solid' : ''}">${esc(r.tag)}</span></span></div>
           <div class="box-body">
             <h2>${esc(r.title)}</h2>
             <ul>${r.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
