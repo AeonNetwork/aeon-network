@@ -2,9 +2,33 @@
 
 # Aeon Network — the live hub for Robinhood Chain
 
-[getaeon.network](https://getaeon.network) · [X @getaeon_network](https://x.com/getaeon_network) · [Status](https://getaeon.network/#/status) · [Docs](https://getaeon.network/#/docs)
+[**getaeon.network**](https://getaeon.network) · [X @getaeon_network](https://x.com/getaeon_network) · [Status](https://getaeon.network/#/status) · [Docs](https://getaeon.network/#/docs)
 
-**getaeon.network** · Network activity, block explorer, ecosystem directory, tokens, wallet tools and a network AI for Robinhood Chain (Arbitrum Orbit L2, chain ID 4663). All data is real: read from the chain or from public data providers. Nothing is mocked; when a source is down the UI says so.
+Every block, every tokenized stock and an AI that answers straight from the chain, for Robinhood Chain (Arbitrum Orbit L2, chain ID 4663). All data is real: read from the chain or from public data providers, and every number links to its source. Nothing is mocked; when a source is down the UI says so.
+
+<p align="center"><img src="brand/post-05-features.png" alt="Aeon features: live network, portfolio, stock check, network AI" width="100%" /></p>
+
+## Features
+
+| | Feature | What it does |
+|---|---|---|
+| 01 | **Live network** | Block height, block time, TPS, gas and the dollar cost of a transfer, live block and transaction feeds, daily charts, most-called contracts. Pushed to the browser as blocks land. |
+| 02 | **Portfolio** | Any wallet's tokenized stocks, valued like a brokerage app: total value, today's gain or loss, 7-day history, allocation and every transfer. Copycat and phishing tokens are flagged and never counted. Read-only, no wallet connection needed. |
+| 03 | **Stocks & stock check** | All ~200 official ERC-8056 stock tokens with holders, market cap and volume, a market-cap map, and a checker that tells the official token from look-alikes. |
+| 04 | **Network AI** | Reads blocks, transactions, wallets and tokens before it answers. Paste a hash or address and get it explained in plain language. Fails over across Gemini, Gemini Lite and OpenRouter. |
+| | **Explorer** | Search, blocks, decoded transactions, addresses and token profiles, cross-checked between RPC and Blockscout. |
+| | **Wallet tools** | Wallet check (holdings, copycats, risky approvals with revoke), watchlist with alerts, add Robinhood Chain to your wallet. Wallet connection is always optional. |
+| | **Aeon RPC** | A public, rate-limited JSON-RPC endpoint: `https://getaeon.network/rpc/mainnet` |
+
+## Community token
+
+The Aeon community token lives on Robinhood Chain and was launched on Pons.
+
+```
+CA: 0xb4fc414ac279bb3136e3cf7ec5084846af3bb459
+```
+
+The only official address is the one shown at the bottom of every page on [getaeon.network](https://getaeon.network) and posted by [@getaeon_network](https://x.com/getaeon_network). Nothing here is financial advice.
 
 ## Run
 
@@ -16,16 +40,19 @@ npm start              # http://localhost:3000
 
 Node.js 22+. Dev mode with auto-restart: `npm run dev`.
 
-## Pages (all routes live under the network)
+## Pages
 
 | Route | What it shows | Source |
 |---|---|---|
-| `#/` Network | Live block height, block time, TPS, gas (+ $ cost of a transfer), tx/active addresses/deployments/token transfers, per-minute charts, live block & tx feeds, most active contracts | RPC + Aeon indexer |
-| `#/explorer` | Search; latest blocks, txs, contract deployments; `/block/:n`, `/tx/:hash` (decoded token transfers, fee), `/address/:addr` (balance, token balances, history) | RPC, Blockscout |
-| `#/ecosystem` | TVL + rank, protocols, stablecoins, DEX volume, fees, charts, protocol directory, Robinhood news | DefiLlama, Cointelegraph |
-| `#/tokens` | ERC-20 tokens ranked by transfers, discovered automatically | Aeon indexer + RPC |
-| `#/wallet` | Connect wallet, ETH & token balances, send ETH, add network, testnet faucet | Wallet (EIP-6963), RPC |
-| `#/ai` | Network AI that looks up blocks, txs, addresses and ecosystem data with tools | Claude + all of the above |
+| `#/` Network | Live block height, block time, TPS, gas and transfer cost, live block & tx feeds, charts, most-called contracts | RPC + Aeon indexer, Blockscout |
+| `#/stocks` | Official stock tokens, market-cap map, stock check | Blockscout |
+| `#/portfolio` | Brokerage-style view of any wallet's stock tokens | Blockscout, CoinGecko |
+| `#/explorer` | Search, blocks, transactions, addresses | RPC, Blockscout |
+| `#/token/:addr` | Token profile: supply, holders, top holders, transfers, price history | Blockscout, CoinGecko |
+| `#/ecosystem` | TVL, protocols, stablecoins, DEX volume, fees | DefiLlama |
+| `#/check` · `#/wallet` | Wallet check and watchlist | Blockscout, RPC |
+| `#/ai` | Network AI with chain tools | Gemini / OpenRouter / Claude + the above |
+| `#/status` · `#/docs` · `#/faq` | Live upstream status, docs, FAQ | |
 
 Mainnet/Testnet switch in the top bar applies to every page.
 
@@ -33,12 +60,14 @@ Mainnet/Testnet switch in the top bar applies to every page.
 
 | Key | Needed? | Why | Where |
 |---|---|---|---|
-| `ALCHEMY_API_KEY` | **Recommended** | The indexer reads every block; a private RPC avoids public-RPC rate limits | alchemy.com (free) → app on Robinhood Chain |
-| `ANTHROPIC_API_KEY` | Required for AI | Network AI | console.anthropic.com (paid per use) |
-| `BLOCKSCOUT_API_KEY` | Optional | Higher limits for address history | Blockscout → My account → API keys (free) |
-| `COINGECKO_API_KEY` | Optional | ETH/USD rate | coingecko.com/en/api/pricing → Demo (free) |
+| `ALCHEMY_API_KEY` | **Recommended** | Private RPC so the indexer avoids public-RPC rate limits | alchemy.com (free) |
+| `BLOCKSCOUT_API_KEY` | Recommended | Network totals, history, token data (PRO API) | dev.blockscout.com (free) |
+| `GEMINI_API_KEY` | For the AI | Gemini and Gemini Lite, separate free quotas | aistudio.google.com (free) |
+| `OPENROUTER_API_KEY` | Optional | AI fallback | openrouter.ai (free models) |
+| `ANTHROPIC_API_KEY` | Optional | Strongest AI provider | console.anthropic.com (paid) |
+| `COINGECKO_API_KEY` | Optional | Stock-token prices, ETH/USD | coingecko.com (free Demo) |
 
-DefiLlama and Cointelegraph need no key.
+DefiLlama needs no key. See [.env.example](.env.example) for every setting.
 
 ## How the backend stays inside free limits
 
