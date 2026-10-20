@@ -1,0 +1,86 @@
+<!doctype html>
+<!-- "Major update lands tomorrow" teaser, 1600x900. Derived from post-teaser.html. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line-strong: rgba(255,255,255,0.34); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, sans-serif; -webkit-font-smoothing: antialiased; }
+  .f { position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(60% 70% at 50% 58%, #181818 0%, #050505 60%, #000 100%); }
+  canvas { position: absolute; inset: 0; }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 20px; height: 20px; border: 0 solid var(--ink); z-index: 5; }
+  .ticks::before { left: 28px; top: 28px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 28px; bottom: 28px; border-bottom-width: 3px; border-right-width: 3px; }
+  .top { position: absolute; left: 70px; right: 70px; top: 60px; display: flex; justify-content: space-between; align-items: center; font: 600 15px 'Geist Mono', monospace; letter-spacing: 0.2em; z-index: 3; }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand span { color: var(--ink-3); }
+  .brand svg { width: 28px; height: 25px; }
+  .tag { display: flex; align-items: center; gap: 10px; background: var(--ink); color: #000; padding: 7px 12px; }
+  .tag i { width: 9px; height: 9px; background: #000; }
+  .copy { position: absolute; left: 0; right: 0; top: 520px; text-align: center; z-index: 3; display: grid; gap: 18px; justify-items: center; }
+  .kick { font: 600 18px 'Geist Mono', monospace; letter-spacing: 0.32em; color: var(--ink-2); }
+  h1 { margin: 0; font-size: 112px; line-height: 0.9; font-weight: 900; letter-spacing: -0.06em; }
+  h1 span { color: var(--ink-3); }
+  .sub { font: 500 20px 'Geist Mono', monospace; letter-spacing: 0.06em; color: var(--ink-2); }
+  .url { position: absolute; left: 70px; bottom: 60px; font: 600 18px 'Geist Mono', monospace; background: var(--ink); color: #000; padding: 9px 14px; z-index: 3; }
+  .soon { position: absolute; right: 70px; bottom: 66px; font: 600 14px 'Geist Mono', monospace; letter-spacing: 0.24em; color: var(--ink-3); z-index: 3; }
+</style>
+</head>
+<body>
+<div class="f ticks">
+  <canvas id="c"></canvas>
+  <div class="top">
+    <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
+    <div class="tag"><i></i>FINAL TESTING</div>
+  </div>
+  <div class="copy">
+    <div class="kick">MAJOR UPDATE · LANDS TOMORROW</div>
+    <h1>Built to last.<br /><span>Shipping tomorrow.</span></h1>
+    <div class="sub">October 22, 2026 · getaeon.network</div>
+  </div>
+  <div class="url">getaeon.network</div>
+  <div class="soon">T-1 DAY</div>
+</div>
+<script>
+  const W = 1600, H = 900, c = document.getElementById('c'), x = c.getContext('2d');
+  c.width = W * 2; c.height = H * 2; c.style.width = W + 'px'; c.style.height = H + 'px'; x.scale(2, 2);
+  let s = 4663;
+  const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 600; i++) { x.fillStyle = `rgba(255,255,255,${0.04 + r() * 0.3})`; x.fillRect(r() * W, r() * H, 1.4, 1.4); }
+  // the ring (the chain), with a gap where the new block is forming
+  const cx = W / 2, cy = 300, R = 520, tilt = 0.28;
+  for (let i = 0; i < 7000; i++) {
+    const a = r() * Math.PI * 2;
+    const gap = Math.abs(((a - 1.57 + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < 0.22;
+    if (gap) continue;
+    const rr = 1 + (r() < 0.8 ? (r() - 0.5) * 0.05 : (r() - 0.5) * 0.14);
+    const X = Math.cos(a) * rr, Z = Math.sin(a) * rr;
+    const y = Z * Math.sin(tilt), z = Z * Math.cos(tilt);
+    const k = 5 / (5 + z);
+    const depth = Math.max(0, Math.min(1, 0.6 - z * 0.5));
+    x.fillStyle = `rgba(255,255,255,${(0.12 + depth * 0.6) * (0.4 + r() * 0.6)})`;
+    x.fillRect(cx + X * R * k, cy + y * R * k, 1.6 * k, 1.6 * k);
+  }
+  // the new block, assembling in the gap (front of the ring)
+  const bx = cx, by = cy + Math.sin(tilt) * R * (5 / (5 + Math.cos(tilt)));
+  const g = x.createRadialGradient(bx, by, 0, bx, by, 160);
+  g.addColorStop(0, 'rgba(255,255,255,0.5)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(bx - 160, by - 160, 320, 320);
+  for (let i = 0; i < 900; i++) {
+    const px = (r() - 0.5) * 70, py = (r() - 0.5) * 70, d = Math.max(Math.abs(px), Math.abs(py));
+    const edge = d > 30 ? 1 : r() < 0.35 ? 0.6 : 0;
+    if (!edge) continue;
+    x.fillStyle = `rgba(255,255,255,${0.5 + r() * 0.5})`;
+    x.fillRect(bx + px + (r() - 0.5) * (d > 30 ? 6 : 40), by + py + (r() - 0.5) * (d > 30 ? 6 : 40), 1.8, 1.8);
+  }
+  x.strokeStyle = 'rgba(255,255,255,0.9)'; x.lineWidth = 2;
+  x.strokeRect(bx - 34, by - 34, 68, 68);
+  const f = x.createLinearGradient(0, 0, W, 0);
+  f.addColorStop(0, 'rgba(255,255,255,0)'); f.addColorStop(0.5, 'rgba(255,255,255,0.55)'); f.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = f; x.fillRect(0, by - 1, W, 2);
+  document.fonts.ready.then(() => (window.__ready = true));
+</script>
+</body>
+</html>
