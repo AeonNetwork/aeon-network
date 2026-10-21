@@ -1,0 +1,279 @@
+<!doctype html>
+<!-- Major update film (1920x1080, 30 s): Token Safety Scanner + Aeon AI Agent. A wall of the
+     AE token's real bytecode, a scan beam, the real checks, the real score and grade, then the
+     agent working step by step. window.DATA = brand film data (live scan of AE, whale count).
+     Timed to brand/scanner-sound.mjs. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+const x = document.getElementById('c').getContext('2d');
+const D = window.DATA;
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const out = (k) => 1 - (1 - k) ** 3;
+const outBack = (k) => 1 + 2.2 * (k - 1) ** 3 + 1.2 * (k - 1) ** 2;
+const io = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2);
+const lerp = (a, b, k) => a + (b - a) * k;
+
+const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'].map((d) => new Path2D(d));
+const SPR = new OffscreenCanvas(1040, 940);
+{ const g = SPR.getContext('2d'); g.scale(5, 5); g.translate(-96, -106); g.fillStyle = '#fff'; AE.forEach((p) => g.fill(p)); }
+const mark = (cx, cy, h, a, glow = 0) => { if (a <= 0) return; const w = (208 / 188) * h; x.save(); x.globalAlpha = a; if (glow) (x.shadowColor = '#fff'), (x.shadowBlur = glow); x.drawImage(SPR, cx - w / 2, cy - h / 2, w, h); x.restore(); };
+
+function text(str, px, py, size, { weight = 800, font = 'Geist', color = '#fff', alpha = 1, spacing = 0, align = 'center', blur = 0 } = {}) {
+  if (alpha <= 0) return;
+  x.save(); x.globalAlpha = alpha;
+  x.font = `${weight} ${size}px "${font}"`; x.letterSpacing = spacing + 'px';
+  x.textAlign = align; x.textBaseline = 'middle'; x.fillStyle = color;
+  if (blur > 0.3) x.filter = `blur(${blur}px)`;
+  x.fillText(str, px, py); x.restore();
+}
+function line(str, px, py, t, t0, t1, size, o = {}) {
+  const k = out(span(t, t0, t0 + 0.9)), a = k * (1 - span(t, t1 - 0.45, t1));
+  text(str, px, py + (1 - k) * 16, size, { ...o, alpha: a * (o.alpha ?? 1), blur: (1 - k) * 12, spacing: lerp((o.spacing ?? 0) + 16, o.spacing ?? 0, k) });
+}
+function rect(px, py, w, h, { stroke = 'rgba(255,255,255,0.3)', fill = null, alpha = 1, lw = 1.5 } = {}) {
+  if (alpha <= 0) return;
+  x.save(); x.globalAlpha = alpha;
+  if (fill) { x.fillStyle = fill; x.fillRect(px, py, w, h); }
+  if (stroke) { x.strokeStyle = stroke; x.lineWidth = lw; x.strokeRect(px + 0.5, py + 0.5, w, h); }
+  x.restore();
+}
+const corners = (px, py, w, h, a, s = 22) => {
+  if (a <= 0) return;
+  x.save(); x.globalAlpha = a; x.strokeStyle = '#fff'; x.lineWidth = 3; x.beginPath();
+  x.moveTo(px, py + s); x.lineTo(px, py); x.lineTo(px + s, py);
+  x.moveTo(px + w - s, py + h); x.lineTo(px + w, py + h); x.lineTo(px + w, py + h - s);
+  x.stroke(); x.restore();
+};
+
+// ---------- the bytecode wall (AE's real runtime bytecode) ----------
+const HEX = D.code.toUpperCase();
+const COLS = 48, CW = 40, RH = 36;
+const ROWS = Math.ceil(HEX.length / 2 / COLS);
+const byteAt = (r, c) => HEX.substr(((r * COLS + c) * 2) % HEX.length, 2);
+let seed = 4663;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const HOT = Array.from({ length: 70 }, () => [Math.floor(rnd() * 400), Math.floor(rnd() * COLS)]);
+function wall(t, alpha, beamX = -1, tint = 0) {
+  if (alpha <= 0) return;
+  const scroll = t * 26;
+  const r0 = Math.floor(scroll / RH);
+  x.save();
+  x.font = '500 19px "Geist Mono"'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  const left = (W - COLS * CW) / 2 + CW / 2;
+  for (let r = r0; r < r0 + Math.ceil(H / RH) + 2; r++) {
+    const py = r * RH - scroll + 18;
+    for (let c = 0; c < COLS; c++) {
+      const px = left + c * CW;
+      const d = beamX >= 0 ? Math.abs(px - beamX) : 9999;
+      const hot = HOT.some(([hr, hc]) => hr === r % 400 && hc === c);
+      let a = 0.13 + (hot ? 0.1 : 0);
+      if (d < 260) a += (1 - d / 260) ** 2 * 0.75;
+      if (beamX >= 0 && px < beamX) a += tint * 0.12;
+      const edge = clamp(py / 160) * clamp((H - py) / 160);
+      x.globalAlpha = a * alpha * edge;
+      x.fillStyle = '#fff';
+      x.fillText(byteAt(r, c), px, py);
+    }
+  }
+  x.restore();
+}
+function beam(px, a) {
+  if (a <= 0) return;
+  x.save(); x.globalAlpha = a;
+  const g = x.createLinearGradient(px - 180, 0, px + 8, 0);
+  g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,0.22)');
+  x.fillStyle = g; x.fillRect(px - 180, 0, 188, H);
+  x.shadowColor = '#fff'; x.shadowBlur = 30; x.fillStyle = '#fff'; x.fillRect(px - 1.5, 0, 3, H);
+  x.restore();
+}
+function vignette(a = 0.85) {
+  const g = x.createRadialGradient(CX, CY, 300, CX, CY, 1150);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${a})`);
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+}
+const flash = (t, at, len = 0.5, peak = 0.9) => { const k = span(t, at, at + len); if (k > 0 && k < 1) { x.fillStyle = `rgba(255,255,255,${(1 - k) ** 2 * peak})`; x.fillRect(0, 0, W, H); } };
+const shake = (t, at, amt = 14, len = 0.5) => { const k = span(t, at, at + len); return k > 0 && k < 1 ? Math.sin(t * 90) * amt * (1 - k) ** 2 : 0; };
+
+// ---------- the checks: real results of the AE scan ----------
+const C = Object.fromEntries(D.checks.map((c) => [c.id, c]));
+const CHECKS = [
+  ['MINT · PAUSE · BLACKLIST', C.powers?.level === 'pass' ? 'NONE FOUND' : 'FOUND', C.powers?.level === 'pass'],
+  ['TAX SWITCHES', C.powers?.level === 'pass' ? 'NONE FOUND' : 'FOUND', C.powers?.level === 'pass'],
+  ['UPGRADEABLE CODE', C.proxy?.level === 'pass' ? 'NO' : 'YES', C.proxy?.level === 'pass'],
+  ['HONEYPOT TEST', C.transfer?.level === 'pass' ? 'PASSED' : 'FAILED', C.transfer?.level === 'pass'],
+  ['HOLDER SPREAD', `TOP 10 · ${D.top10.toFixed(1)}%`, C.holders?.level === 'pass'],
+  ['DEX LIQUIDITY', C.liquidity?.level === 'pass' ? 'OK' : 'THIN', C.liquidity?.level === 'pass'],
+];
+const CHECK_AT = [8.0, 8.5, 9.0, 9.5, 10.0, 10.5];
+function checkRow(i, t, px, py) {
+  const at = CHECK_AT[i], k = out(span(t, at, at + 0.45));
+  if (k <= 0) return;
+  const [label, val, ok] = CHECKS[i];
+  const done = span(t, at + 0.35, at + 0.4) >= 1;
+  x.save(); x.globalAlpha = k; x.translate((1 - k) * -40, 0);
+  rect(px, py, 760, 74, { stroke: 'rgba(255,255,255,0.22)', fill: 'rgba(0,0,0,0.78)' });
+  // mark
+  x.fillStyle = done && ok ? '#fff' : 'transparent'; x.strokeStyle = '#fff'; x.lineWidth = 2;
+  if (done && ok) x.fillRect(px + 22, py + 21, 32, 32);
+  else { x.setLineDash(done ? [5, 4] : []); x.strokeRect(px + 22.5, py + 21.5, 32, 32); x.setLineDash([]); }
+  x.restore();
+  text(done ? (ok ? '✓' : '!') : '…', px + 38, py + 38, 20, { font: 'Geist Mono', weight: 700, color: done && ok ? '#000' : '#fff', alpha: k });
+  text(label, px + 76, py + 37, 25, { font: 'Geist Mono', weight: 600, align: 'left', alpha: k, spacing: 2 });
+  text(done ? val : 'READING…', px + 736, py + 37, 25, { font: 'Geist Mono', weight: 500, align: 'right', alpha: k * (done ? 1 : 0.5), color: ok ? '#fff' : '#bbb' });
+}
+
+// ---------- score ring ----------
+function scoreRing(t, cx, cy, r, a) {
+  if (a <= 0) return;
+  const k = io(span(t, 12.4, 15.4));
+  const v = Math.round(D.score * k);
+  x.save(); x.globalAlpha = a;
+  x.lineWidth = 3; x.strokeStyle = 'rgba(255,255,255,0.14)';
+  x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.stroke();
+  // 100 ticks
+  for (let i = 0; i < 100; i++) {
+    const ang = -Math.PI / 2 + (i / 100) * Math.PI * 2, on = i < D.score * k;
+    x.strokeStyle = on ? '#fff' : 'rgba(255,255,255,0.12)'; x.lineWidth = on ? 5 : 3;
+    x.beginPath(); x.moveTo(cx + Math.cos(ang) * (r + 18), cy + Math.sin(ang) * (r + 18)); x.lineTo(cx + Math.cos(ang) * (r + (i % 10 ? 38 : 52)), cy + Math.sin(ang) * (r + (i % 10 ? 38 : 52))); x.stroke();
+  }
+  x.shadowColor = '#fff'; x.shadowBlur = 24; x.lineWidth = 10; x.strokeStyle = '#fff'; x.lineCap = 'round';
+  x.beginPath(); x.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (D.score / 100) * k * Math.PI * 2); x.stroke();
+  x.restore();
+  text(String(v), cx, cy - 10, 200, { weight: 900, alpha: a, spacing: -6 });
+  text('/ 100', cx, cy + 110, 34, { font: 'Geist Mono', weight: 500, alpha: a * 0.6, spacing: 4 });
+}
+
+// ---------- agent panel ----------
+const STEPS = [
+  ['Reading the AE token', `${D.aeHolders} holders · ${D.burned.toFixed(1)}% burned`, 22.2],
+  ['Scanning token contract', `AE: grade ${D.grade} (${D.score}/100)`, 23.1],
+  ['Reading whale trades', `${D.whales24h.toLocaleString('en-US')} whale trades in 24h`, 24.0],
+];
+function spinner(cx, cy, t) {
+  x.save(); x.strokeStyle = '#fff'; x.lineWidth = 3; x.beginPath(); x.arc(cx, cy, 11, t * 9, t * 9 + 4.2); x.stroke(); x.restore();
+}
+function agent(t, a) {
+  if (a <= 0) return;
+  const px = 380, py = 300, w = 1160;
+  // question bubble, typed
+  const Q = 'Is AE safe? And what are the whales doing today?';
+  const n = Math.floor(Q.length * span(t, 21.7, 22.4));
+  const qk = out(span(t, 21.5, 21.9));
+  rect(px + w - 900, py - 120, 900, 76, { stroke: 'rgba(255,255,255,0.4)', alpha: a * qk, fill: 'rgba(0,0,0,0.8)' });
+  text(Q.slice(0, n) + (n < Q.length && Math.floor(t * 4) % 2 ? '|' : ''), px + w - 870, py - 82, 28, { weight: 500, align: 'left', alpha: a * qk });
+  // panel
+  const pk = out(span(t, 21.9, 22.3));
+  const shown = STEPS.filter((s) => t >= s[2]).length;
+  rect(px, py, w, 70 + 96 * 3, { stroke: 'rgba(255,255,255,0.3)', fill: 'rgba(0,0,0,0.85)', alpha: a * pk });
+  corners(px - 8, py - 8, w + 16, 70 + 96 * 3 + 16, a * pk);
+  text(`AGENT · ${shown} STEP${shown === 1 ? '' : 'S'}`, px + 30, py + 36, 22, { font: 'Geist Mono', weight: 500, align: 'left', alpha: a * pk * 0.7, spacing: 5 });
+  STEPS.forEach(([name, sum, at], i) => {
+    const k = out(span(t, at, at + 0.35));
+    if (k <= 0) return;
+    const y = py + 70 + i * 96;
+    const done = t > at + 0.55;
+    x.save(); x.globalAlpha = a * k; x.strokeStyle = 'rgba(255,255,255,0.18)'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(px, y); x.lineTo(px + w, y); x.stroke(); x.restore();
+    x.save(); x.globalAlpha = a * k;
+    if (done) { x.fillStyle = '#fff'; x.fillRect(px + 30, y + 30, 36, 36); } else spinner(px + 48, y + 48, t);
+    x.restore();
+    if (done) text('✓', px + 48, y + 49, 24, { font: 'Geist Mono', weight: 700, color: '#000', alpha: a * k });
+    text(name, px + 96, y + 48, 30, { font: 'Geist Mono', weight: 600, align: 'left', alpha: a * k });
+    text(done ? sum : 'working…', px + 600, y + 48, 30, { weight: 500, align: 'left', alpha: a * k * (done ? 0.85 : 0.45) });
+    if (done) text('open ↗', px + w - 30, y + 48, 22, { font: 'Geist Mono', weight: 500, align: 'right', alpha: a * k * 0.5 });
+  });
+}
+
+// ---------- the film ----------
+window.render = (t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  const sx = shake(t, 6, 16) + shake(t, 12, 10) + shake(t, 15.6, 18) + shake(t, 20, 16) + shake(t, 26.6, 10);
+  x.setTransform(1, 0, 0, 1, sx, sx * 0.4);
+
+  // 1 · 0–6: every token is code
+  if (t < 12.2) {
+    const a = span(t, 0.2, 2.2) * (t < 6 ? 1 : 1 - span(t, 11.6, 12.2));
+    const beamX = t >= 8 && t < 12 ? lerp(-100, W + 100, io(span(t, 8, 11.8))) : -1;
+    wall(t, a * (t >= 6 && t < 8 ? 0.45 : 1), beamX, span(t, 8, 12));
+    if (beamX >= 0) beam(beamX, 1 - span(t, 11.5, 11.9));
+  }
+  line('Every token is code.', CX, CY - 40, t, 0.9, 3.2, 92, { weight: 800 });
+  line('Code can hide a trap.', CX, CY - 40, t, 3.3, 5.8, 92, { weight: 800 });
+  if (t < 6) text('0xb4fc414ac279bb3136e3cf7ec5084846af3bb459', CX, CY + 60, 26, { font: 'Geist Mono', weight: 500, alpha: span(t, 3.6, 4.4) * (1 - span(t, 5.4, 5.8)) * 0.6, spacing: 2 });
+
+  // 2 · 6–12: TOKEN SAFETY SCANNER, then the checks
+  if (t >= 6 && t < 12.3) {
+    const k = out(span(t, 6, 6.6)), o = 1 - span(t, 7.6, 8.0);
+    mark(CX, CY - 150, 150 * lerp(1.3, 1, k), k * o, 40);
+    text('TOKEN SAFETY SCANNER', CX, CY + 40, 104, { weight: 900, alpha: k * o, spacing: lerp(40, 4, k) });
+    text('NEW ON AEON NETWORK', CX, CY + 130, 28, { font: 'Geist Mono', weight: 500, alpha: k * o * 0.7, spacing: 10 });
+    const ck = 1 - span(t, 11.7, 12.2);
+    x.save(); x.globalAlpha = ck;
+    text('SCANNING AE', 160, 210, 30, { font: 'Geist Mono', weight: 600, align: 'left', alpha: span(t, 7.8, 8.2), spacing: 8 });
+    for (let i = 0; i < 6; i++) checkRow(i, t, 160, 260 + i * 92);
+    x.restore();
+  }
+  flash(t, 6, 0.55, 0.95);
+
+  // 3 · 12–18: the score, then the grade
+  if (t >= 12 && t < 18.2) {
+    const a = out(span(t, 12, 12.5)) * (1 - span(t, 17.6, 18.1));
+    vignette();
+    scoreRing(t, 640, CY, 250, a);
+    const g = span(t, 15.6, 15.95);
+    const gk = outBack(g);
+    if (g > 0) {
+      const s = 380 * lerp(1.6, 1, gk);
+      x.save(); x.globalAlpha = a * clamp(g * 3);
+      x.fillStyle = '#fff'; x.fillRect(1310 - s / 2, CY - 40 - s / 2, s, s);
+      x.restore();
+      text(D.grade, 1310, CY - 30, 300 * lerp(1.6, 1, gk), { weight: 900, color: '#000', alpha: a * clamp(g * 3) });
+    }
+    text('GRADE', 1310, CY - 280, 30, { font: 'Geist Mono', weight: 600, alpha: a * span(t, 15.6, 16), spacing: 12 });
+    text(D.verdict.length > 46 ? 'No serious flags.' : D.verdict, 1310, CY + 230, 34, { weight: 700, alpha: a * span(t, 16.2, 16.7) });
+    text(`AE · ${D.holders} holders · read from the chain`, 1310, CY + 285, 24, { font: 'Geist Mono', weight: 500, alpha: a * span(t, 16.5, 17) * 0.6, spacing: 2 });
+    text('SAFETY SCORE', 640, 170, 30, { font: 'Geist Mono', weight: 600, alpha: a * 0.7, spacing: 12 });
+  }
+  flash(t, 12, 0.4, 0.6);
+  flash(t, 15.6, 0.45, 0.9);
+
+  // 4 · 18–20: one more thing
+  line('And one more thing.', CX, CY, t, 18.1, 19.9, 80, { weight: 800 });
+
+  // 5 · 20–26: AEON AI AGENT
+  if (t >= 20 && t < 26.4) {
+    const k = out(span(t, 20, 20.6)), o = 1 - span(t, 21.2, 21.5);
+    text('AEON AI AGENT', CX, CY - 20, 150, { weight: 900, alpha: k * o, spacing: lerp(40, -2, k) });
+    text('IT WORKS THE CHAIN FOR YOU', CX, CY + 95, 30, { font: 'Geist Mono', weight: 500, alpha: k * o * 0.7, spacing: 10 });
+    const a = span(t, 21.4, 21.7) * (1 - span(t, 25.9, 26.4));
+    agent(t, a);
+    line('Step by step. Every step shown.', CX, 840, t, 24.7, 26.3, 46, { weight: 700 });
+  }
+  flash(t, 20, 0.55, 0.95);
+
+  // 6 · 26.6–30.5: live now
+  if (t >= 26.4) {
+    const k = out(span(t, 26.6, 27.3));
+    const fade = 1 - span(t, 29.6, 30.5);
+    mark(CX, CY - 170, 190 * lerp(1.25, 1, k), k * fade, 50);
+    text('LIVE NOW', CX, CY + 20, 34, { font: 'Geist Mono', weight: 600, alpha: span(t, 27.0, 27.4) * fade, spacing: 16 });
+    text('getaeon.network/scan', CX, CY + 110, 92, { weight: 900, alpha: span(t, 27.3, 27.9) * fade, spacing: -1 });
+    text('Token Safety Scanner  ·  Aeon AI Agent  ·  Robinhood Chain', CX, CY + 200, 28, { font: 'Geist Mono', weight: 500, alpha: span(t, 27.8, 28.4) * fade * 0.6, spacing: 2 });
+  }
+  flash(t, 26.6, 0.6, 0.9);
+  x.setTransform(1, 0, 0, 1, 0, 0);
+};
+
+document.fonts.ready.then(() => document.fonts.load('600 20px "Geist Mono"')).then(() => document.fonts.load('900 20px "Geist"')).then(() => { window.render(0); window.__ready = true; });
+</script>
+</body>
+</html>
