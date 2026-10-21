@@ -40,7 +40,7 @@ const TITLES = {
   ecosystem: 'Ecosystem · Aeon Network',
   tokens: 'Tokens · Aeon Network',
   wallet: 'Watchlist · Aeon Network',
-  ai: 'Network AI · Aeon Network',
+  ai: 'Aeon AI Agent · Aeon Network',
   docs: 'Docs · Aeon Network',
   status: 'Status · Aeon Network',
   check: 'Wallet check · Aeon Network',
