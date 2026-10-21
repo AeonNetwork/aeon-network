@@ -3,6 +3,7 @@ const el = document.getElementById('left');
 const end = Number(document.body.dataset.end);
 const pad = (n) => String(n).padStart(2, '0');
 function tick() {
+  if (!el) return; // no countdown on this notice
   const ms = end - Date.now();
   if (ms <= 0) {
     el.textContent = '00:00:00';
