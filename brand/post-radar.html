@@ -1,0 +1,129 @@
+<!doctype html>
+<!-- X post: New Token Radar launch, 1600x900. window.DATA = live radar snapshot (stats, hot list,
+     the newest launches as radar blips). -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255,255,255,0.14); --line-strong: rgba(255,255,255,0.34); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .frame { position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(55% 75% at 30% 52%, #161616 0%, #050505 60%, #000 100%); }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 20px; height: 20px; border: 0 solid var(--ink); z-index: 5; }
+  .ticks::before { left: 28px; top: 28px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 28px; bottom: 28px; border-bottom-width: 3px; border-right-width: 3px; }
+  #radar { position: absolute; left: -150px; top: 70px; width: 820px; height: 820px; }
+  .copy { position: absolute; left: 84px; top: 76px; width: 640px; display: grid; gap: 20px; z-index: 2; }
+  .brand { display: flex; align-items: center; gap: 12px; font: 600 16px 'Geist Mono', monospace; letter-spacing: 0.22em; }
+  .brand span { color: var(--ink-3); }
+  .brand svg { width: 34px; height: 31px; }
+  .tag { justify-self: start; display: flex; align-items: center; gap: 10px; font: 600 14px 'Geist Mono', monospace; letter-spacing: 0.18em; background: var(--ink); color: #000; padding: 8px 12px; margin-top: 10px; }
+  .tag i { width: 8px; height: 8px; border-radius: 50%; background: #000; animation: none; }
+  h1 { margin: 0; font-size: 104px; line-height: 0.9; font-weight: 900; letter-spacing: -0.06em; text-shadow: 0 0 40px #000; }
+  h1 span { color: var(--ink-3); }
+  .stats { position: absolute; left: 84px; bottom: 150px; display: grid; grid-template-columns: repeat(3, 190px); border: 1px solid var(--line-strong); background: rgba(0,0,0,0.75); z-index: 2; }
+  .stats > div { padding: 16px 18px; display: grid; gap: 6px; }
+  .stats > div + div { border-left: 1px solid var(--line); }
+  .stats b { font: 700 36px/1 'Geist Mono', monospace; letter-spacing: -0.03em; }
+  .stats span { font: 500 11.5px 'Geist Mono', monospace; letter-spacing: 0.12em; color: var(--ink-3); text-transform: uppercase; }
+  .url { position: absolute; left: 84px; bottom: 76px; display: flex; gap: 12px; align-items: center; font: 600 20px 'Geist Mono', monospace; z-index: 2; }
+  .url b { background: var(--ink); color: #000; padding: 10px 16px; }
+  .url em { font-style: normal; color: var(--ink-3); font-weight: 500; font-size: 15px; }
+
+  .card { position: absolute; right: 80px; top: 76px; width: 760px; border: 1px solid var(--line-strong); background: rgba(5,5,5,0.94); box-shadow: 0 40px 140px rgba(0,0,0,0.95); }
+  .card::before, .card::after { content: ''; position: absolute; width: 16px; height: 16px; border: 0 solid var(--ink); }
+  .card::before { left: -9px; top: -9px; border-top-width: 3px; border-left-width: 3px; }
+  .card::after { right: -9px; bottom: -9px; border-bottom-width: 3px; border-right-width: 3px; }
+  .bar { display: flex; justify-content: space-between; align-items: center; height: 46px; padding: 0 20px; border-bottom: 1px solid var(--line); font: 500 12px 'Geist Mono', monospace; letter-spacing: 0.14em; color: var(--ink-2); text-transform: uppercase; }
+  .bar .live::before { content: ''; display: inline-block; width: 7px; height: 7px; background: var(--ink); margin-right: 8px; vertical-align: 1px; }
+  .tabs { display: flex; gap: 8px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  .tabs span { font: 500 12.5px 'Geist Mono', monospace; padding: 6px 10px; border: 1px solid var(--line); color: var(--ink-2); }
+  .tabs span.on { background: var(--ink); color: #000; border-color: var(--ink); }
+  .row { display: grid; grid-template-columns: 1fr 230px 110px 44px; gap: 18px; align-items: center; height: 92px; padding: 0 20px; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row b { display: block; font: 700 20px 'Geist Mono', monospace; }
+  .row small { display: block; font-size: 14px; color: var(--ink-3); margin-top: 3px; }
+  .prog i { display: block; height: 8px; border: 1px solid var(--line-strong); }
+  .prog i em { display: block; height: 100%; background: var(--ink); }
+  .prog small { font: 500 13px 'Geist Mono', monospace; color: var(--ink-2); margin-top: 7px; }
+  .mc { text-align: right; font: 600 19px 'Geist Mono', monospace; }
+  .mc small { font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.1em; }
+  .g { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--line-strong); font: 700 17px 'Geist Mono', monospace; }
+  .g.A, .g.B { background: var(--ink); color: #000; border-color: var(--ink); }
+  .g.none { color: var(--ink-3); border-color: var(--line); font-size: 12px; }
+  .foot { display: flex; justify-content: space-between; padding: 12px 20px; border-top: 1px solid var(--line); font: 500 12px 'Geist Mono', monospace; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="frame ticks">
+  <canvas id="radar" width="1640" height="1640"></canvas>
+  <div class="copy">
+    <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
+    <div class="tag"><i></i>NEW · TOKEN RADAR</div>
+    <h1>Every launch.<br /><span>Graded live.</span></h1>
+  </div>
+  <div class="stats">
+    <div><b id="s1"></b><span>Launches · 24h</span></div>
+    <div><b id="s2"></b><span>Serial launchers</span></div>
+    <div><b id="s3"></b><span>Graduated · 24h</span></div>
+  </div>
+  <div class="url"><b>getaeon.network/radar</b><em>→ live on Robinhood Chain</em></div>
+
+  <div class="card">
+    <div class="bar"><span>Token radar · Pons launches</span><span class="live">Live · read from the chain</span></div>
+    <div class="tabs"><span class="on">Hot</span><span>New</span><span>Near graduation</span><span>Graduated</span></div>
+    <div id="rows"></div>
+    <div class="foot"><span id="serial"></span><span id="stamp"></span></div>
+  </div>
+</div>
+<script>
+  const D = window.DATA;
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => n.toLocaleString('en-US');
+  const usd = (n) => (n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : '$' + (n / 1e3).toFixed(1) + 'K');
+  $('s1').textContent = fmt(D.stats.launches24h);
+  $('s2').textContent = fmt(D.stats.serialLaunchers);
+  $('s3').textContent = fmt(D.stats.graduated24h);
+  $('rows').innerHTML = D.hot.slice(0, 5).map((r) => `<div class="row">
+      <div><b>${r.symbol}</b><small>${r.name || ''}</small></div>
+      <div class="prog"><i><em style="width:${Math.max(3, (r.progress || 0) * 100)}%"></em></i><small>${r.raised.toFixed(2)} / ${r.threshold} ETH · ${Math.round((r.progress || 0) * 100)}%</small></div>
+      <div class="mc">${r.mcap ? usd(r.mcap) : '—'}<small>MCAP</small></div>
+      <div class="g ${r.grade || 'none'}">${r.grade || '·'}</div>
+    </div>`).join('');
+  $('serial').textContent = D.stats.topSerial ? `⚑ One wallet launched ${D.stats.topSerial[1]} tokens today` : '';
+  $('stamp').textContent = `Real data · ${D.at}`;
+
+  // The radar: rings, a sweep, and the newest launches as blips (distance = age, size = bonding progress).
+  const c = $('radar'), x = c.getContext('2d');
+  x.scale(2, 2);
+  const R = 400, CX = 410, CY = 410;
+  x.strokeStyle = 'rgba(255,255,255,0.12)'; x.lineWidth = 1;
+  for (const k of [0.25, 0.5, 0.75, 1]) { x.beginPath(); x.arc(CX, CY, R * k, 0, Math.PI * 2); x.stroke(); }
+  for (let a = 0; a < 12; a++) { const t = (a / 12) * Math.PI * 2; x.beginPath(); x.moveTo(CX, CY); x.lineTo(CX + Math.cos(t) * R, CY + Math.sin(t) * R); x.stroke(); }
+  const sweep = 0.55;
+  for (let i = 0; i < 70; i++) {
+    x.fillStyle = `rgba(255,255,255,${0.12 * (1 - i / 70)})`;
+    x.beginPath(); x.moveTo(CX, CY); x.arc(CX, CY, R, sweep - (i + 1) * 0.012, sweep - i * 0.012); x.closePath(); x.fill();
+  }
+  x.strokeStyle = 'rgba(255,255,255,0.9)'; x.lineWidth = 2; x.shadowColor = '#fff'; x.shadowBlur = 16;
+  x.beginPath(); x.moveTo(CX, CY); x.lineTo(CX + Math.cos(sweep) * R, CY + Math.sin(sweep) * R); x.stroke();
+  x.shadowBlur = 0;
+  let seed = 4663; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (const b of D.blips) {
+    const ang = rnd() * Math.PI * 2, d = 50 + Math.sqrt(Math.min(1, b.age / 1.5)) * (R - 70);
+    const px = CX + Math.cos(ang) * d, py = CY + Math.sin(ang) * d;
+    if (py < 330) continue; // keep the headline clear
+    const near = Math.abs(((ang - sweep + Math.PI * 3) % (Math.PI * 2)) - Math.PI) > Math.PI - 0.9; // just behind the sweep
+    const s = 2.5 + (b.p || 0) * 9;
+    x.fillStyle = `rgba(255,255,255,${near ? 0.95 : 0.45})`;
+    if (near) { x.shadowColor = '#fff'; x.shadowBlur = 12; }
+    x.beginPath(); x.arc(px, py, s, 0, Math.PI * 2); x.fill();
+    x.shadowBlur = 0;
+    if (b.g) { x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.beginPath(); x.arc(px, py, s + 6, 0, Math.PI * 2); x.stroke(); }
+  }
+  x.fillStyle = '#fff'; x.beginPath(); x.arc(CX, CY, 5, 0, Math.PI * 2); x.fill();
+  document.fonts.ready.then(() => (window.__ready = true));
+</script>
+</body>
+</html>
