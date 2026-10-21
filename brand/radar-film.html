@@ -1,0 +1,195 @@
+<!doctype html>
+<!-- New Token Radar film (1920x1080, 25 s). A live radar: the sweep turns, real launches light up,
+     the hottest tokens fill their bonding curves, a serial launcher is flagged. window.DATA = a
+     snapshot of /api/network/mainnet/radar. Timed to brand/radar-sound.mjs. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+const x = document.getElementById('c').getContext('2d');
+const D = window.DATA;
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const out = (k) => 1 - (1 - k) ** 3;
+const outBack = (k) => 1 + 2.2 * (k - 1) ** 3 + 1.2 * (k - 1) ** 2;
+const io = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2);
+const lerp = (a, b, k) => a + (b - a) * k;
+const fmt = (n) => Math.round(n).toLocaleString('en-US');
+
+const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'].map((d) => new Path2D(d));
+const SPR = new OffscreenCanvas(1040, 940);
+{ const g = SPR.getContext('2d'); g.scale(5, 5); g.translate(-96, -106); g.fillStyle = '#fff'; AE.forEach((p) => g.fill(p)); }
+const mark = (cx, cy, h, a, glow = 0) => { if (a <= 0) return; const w = (208 / 188) * h; x.save(); x.globalAlpha = a; if (glow) (x.shadowColor = '#fff'), (x.shadowBlur = glow); x.drawImage(SPR, cx - w / 2, cy - h / 2, w, h); x.restore(); };
+function text(str, px, py, size, { weight = 800, font = 'Geist', color = '#fff', alpha = 1, spacing = 0, align = 'center', blur = 0, glow = 0 } = {}) {
+  if (alpha <= 0) return;
+  x.save(); x.globalAlpha = alpha;
+  x.font = `${weight} ${size}px "${font}"`; x.letterSpacing = spacing + 'px';
+  x.textAlign = align; x.textBaseline = 'middle'; x.fillStyle = color;
+  if (blur > 0.3) x.filter = `blur(${blur}px)`;
+  if (glow) (x.shadowColor = '#fff'), (x.shadowBlur = glow);
+  x.fillText(str, px, py); x.restore();
+}
+function line(str, px, py, t, t0, t1, size, o = {}) {
+  const k = out(span(t, t0, t0 + 0.8)), a = k * (1 - span(t, t1 - 0.4, t1));
+  text(str, px, py + (1 - k) * 16, size, { ...o, alpha: a * (o.alpha ?? 1), blur: (1 - k) * 12, spacing: lerp((o.spacing ?? 0) + 14, o.spacing ?? 0, k) });
+}
+const flash = (t, at, len = 0.5, peak = 0.9) => { const k = span(t, at, at + len); if (k > 0 && k < 1) { x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = `rgba(255,255,255,${(1 - k) ** 2 * peak})`; x.fillRect(0, 0, W, H); } };
+const shake = (t, at, amt = 14, len = 0.5) => { const k = span(t, at, at + len); return k > 0 && k < 1 ? Math.sin(t * 90) * amt * (1 - k) ** 2 : 0; };
+
+// ---------- the radar ----------
+let seed = 4663;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+// Blips: the real newest launches (distance = age, size = bonding progress), plus the 24h field.
+const BLIPS = [
+  ...D.blips.map((b) => ({ ang: rnd() * Math.PI * 2, d: 0.1 + Math.sqrt(Math.min(1, b.age / 1.5)) * 0.85, s: 3 + (b.p || 0) * 10, g: b.g })),
+  ...Array.from({ length: 160 }, () => ({ ang: rnd() * Math.PI * 2, d: 0.25 + rnd() * 0.75, s: 1.6 + rnd() * 1.6, g: false, faint: true })),
+];
+const SPEED = 2.4; // radians per second
+const sweepAt = (t) => t * SPEED - Math.PI / 2;
+function radar(t, cx, cy, R, a, reveal = 1) {
+  if (a <= 0) return;
+  x.save(); x.globalAlpha = a;
+  x.strokeStyle = 'rgba(255,255,255,0.14)'; x.lineWidth = 1.5;
+  for (const k of [0.25, 0.5, 0.75, 1]) { x.beginPath(); x.arc(cx, cy, R * k * reveal, 0, Math.PI * 2); x.stroke(); }
+  for (let i = 0; i < 12; i++) { const an = (i / 12) * Math.PI * 2; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(an) * R * reveal, cy + Math.sin(an) * R * reveal); x.stroke(); }
+  // ticks on the rim
+  for (let i = 0; i < 72; i++) { const an = (i / 72) * Math.PI * 2; const l = i % 6 ? 8 : 18; x.beginPath(); x.moveTo(cx + Math.cos(an) * R * reveal, cy + Math.sin(an) * R * reveal); x.lineTo(cx + Math.cos(an) * (R * reveal + l), cy + Math.sin(an) * (R * reveal + l)); x.stroke(); }
+  const sw = sweepAt(t);
+  for (let i = 0; i < 80; i++) {
+    x.fillStyle = `rgba(255,255,255,${0.16 * (1 - i / 80)})`;
+    x.beginPath(); x.moveTo(cx, cy); x.arc(cx, cy, R * reveal, sw - (i + 1) * 0.011, sw - i * 0.011); x.closePath(); x.fill();
+  }
+  x.shadowColor = '#fff'; x.shadowBlur = 22; x.strokeStyle = '#fff'; x.lineWidth = 3;
+  x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(sw) * R * reveal, cy + Math.sin(sw) * R * reveal); x.stroke();
+  x.shadowBlur = 0;
+  for (const b of BLIPS) {
+    if (b.d > reveal) continue;
+    const behind = ((sw - b.ang) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2); // radians since the sweep passed
+    const glow = Math.exp(-behind / 1.4);
+    const px = cx + Math.cos(b.ang) * b.d * R, py = cy + Math.sin(b.ang) * b.d * R;
+    x.globalAlpha = a * (b.faint ? 0.12 + 0.5 * glow : 0.3 + 0.7 * glow);
+    if (!b.faint && glow > 0.4) { x.shadowColor = '#fff'; x.shadowBlur = 18 * glow; }
+    x.fillStyle = '#fff'; x.beginPath(); x.arc(px, py, b.s * (1 + 0.6 * glow * (b.faint ? 0 : 1)), 0, Math.PI * 2); x.fill();
+    x.shadowBlur = 0;
+    if (b.g) { x.strokeStyle = '#fff'; x.lineWidth = 2; x.beginPath(); x.arc(px, py, b.s + 9 + glow * 6, 0, Math.PI * 2); x.stroke(); }
+  }
+  x.globalAlpha = a; x.fillStyle = '#fff'; x.beginPath(); x.arc(cx, cy, 6, 0, Math.PI * 2); x.fill();
+  x.restore();
+}
+
+// ---------- hot list ----------
+const ROW_AT = [10.3, 10.8, 11.3, 11.8, 12.3];
+function hotList(t, a) {
+  if (a <= 0) return;
+  const px = 980, py = 230, w = 820;
+  x.save(); x.globalAlpha = a;
+  x.fillStyle = 'rgba(0,0,0,0.85)'; x.fillRect(px, py, w, 80 + 5 * 104);
+  x.strokeStyle = 'rgba(255,255,255,0.32)'; x.lineWidth = 1.5; x.strokeRect(px + 0.5, py + 0.5, w, 80 + 5 * 104);
+  x.restore();
+  text('HOT ON PONS · RIGHT NOW', px + 30, py + 40, 22, { font: 'Geist Mono', weight: 600, align: 'left', alpha: a * 0.7, spacing: 5 });
+  D.hot.slice(0, 5).forEach((r, i) => {
+    const at = ROW_AT[i], k = out(span(t, at, at + 0.4));
+    if (k <= 0) return;
+    const y = py + 80 + i * 104;
+    x.save(); x.globalAlpha = a * k; x.strokeStyle = 'rgba(255,255,255,0.16)'; x.beginPath(); x.moveTo(px, y); x.lineTo(px + w, y); x.stroke(); x.restore();
+    const dx = (1 - k) * 40;
+    text(r.symbol, px + 30 + dx, y + 40, 32, { font: 'Geist Mono', weight: 700, align: 'left', alpha: a * k });
+    text(r.name || '', px + 30 + dx, y + 75, 20, { weight: 500, align: 'left', alpha: a * k * 0.5 });
+    // bonding bar fills to its real progress
+    const fill = io(span(t, at + 0.2, at + 1.2)) * (r.progress || 0);
+    x.save(); x.globalAlpha = a * k;
+    x.strokeStyle = 'rgba(255,255,255,0.4)'; x.lineWidth = 1.5; x.strokeRect(px + 330.5, y + 34.5, 260, 12);
+    x.fillStyle = '#fff'; x.fillRect(px + 331, y + 35, 259 * fill, 11);
+    x.restore();
+    text(`${(r.raised * span(t, at + 0.2, at + 1.2)).toFixed(2)} / ${r.threshold} ETH`, px + 330, y + 72, 20, { font: 'Geist Mono', weight: 500, align: 'left', alpha: a * k * 0.7 });
+    text(r.mcap ? '$' + (r.mcap / 1e3).toFixed(1) + 'K' : '—', px + 720, y + 52, 28, { font: 'Geist Mono', weight: 700, align: 'right', alpha: a * k });
+    // grade stamps in
+    const g = span(t, at + 1.1, at + 1.3);
+    if (r.grade && g > 0) {
+      const s = 52 * lerp(1.7, 1, outBack(g));
+      x.save(); x.globalAlpha = a * clamp(g * 3); x.fillStyle = '#fff'; x.fillRect(px + 770 - s / 2, y + 52 - s / 2, s, s); x.restore();
+      text(r.grade, px + 770, y + 54, 30 * lerp(1.7, 1, outBack(g)), { font: 'Geist Mono', weight: 700, color: '#000', alpha: a * clamp(g * 3) });
+    }
+  });
+}
+
+window.render = (t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  const s = shake(t, 4, 16) + shake(t, 16, 18) + shake(t, 22, 10);
+  x.setTransform(1, 0, 0, 1, s, s * 0.4);
+
+  // 1 · 0–4: the radar wakes up
+  if (t < 10.2) {
+    const a = span(t, 0.2, 1.4) * (1 - span(t, 9.6, 10.2));
+    const R = t < 4 ? 340 : lerp(340, 420, out(span(t, 4, 5)));
+    radar(t, CX, CY + (t < 4 ? 0 : 30), R, t < 4 ? a * 0.9 : a, out(span(t, 0.3, 2.6)));
+  }
+  line(`${fmt(D.stats.launches1h)} new tokens in the last hour.`, CX, 120, t, 0.8, 3.8, 54, { weight: 800 });
+
+  // 2 · 4–10: NEW TOKEN RADAR, the 24h count
+  if (t >= 4 && t < 10.2) {
+    const k = out(span(t, 4, 4.6)), o = 1 - span(t, 6.2, 6.6);
+    x.save(); x.globalAlpha = k * o * 0.85; x.fillStyle = '#000'; x.fillRect(0, CY - 150, W, 300); x.restore();
+    mark(CX, CY - 60, 110 * lerp(1.3, 1, k), k * o, 36);
+    text('NEW TOKEN RADAR', CX, CY + 70, 110, { weight: 900, alpha: k * o, spacing: lerp(36, 2, k), glow: 20 * (1 - k) });
+    const c = io(span(t, 6.6, 9.0));
+    const ca = span(t, 6.5, 6.9) * (1 - span(t, 9.7, 10.1));
+    text(fmt(D.stats.launches24h * c), CX, 120, 96, { font: 'Geist Mono', weight: 700, alpha: ca, glow: 16 });
+    text('LAUNCHES IN 24 HOURS · EVERY ONE READ FROM THE CHAIN', CX, 190, 24, { font: 'Geist Mono', weight: 600, alpha: ca * 0.75, spacing: 5 });
+  }
+  flash(t, 4, 0.55, 0.95);
+
+  // 3 · 10–14: what's hot, graded
+  if (t >= 10 && t < 14.4) {
+    const a = span(t, 10, 10.4) * (1 - span(t, 13.8, 14.3));
+    radar(t, 520, CY, 330, a * 0.85, 1);
+    hotList(t, a);
+  }
+
+  // 4 · 14–16: the serial launcher
+  if (t >= 14 && t < 16.2) {
+    const k = out(span(t, 14.2, 14.7)), o = 1 - span(t, 15.7, 16.1);
+    text('⚑', CX, CY - 150, 80, { weight: 700, alpha: k * o });
+    text(`One wallet launched ${D.stats.topSerial?.[1] ?? '—'} tokens today.`, CX, CY - 10, 74, { weight: 800, alpha: k * o, spacing: lerp(10, -1, k) });
+    text('THE RADAR FLAGS SERIAL LAUNCHERS', CX, CY + 80, 26, { font: 'Geist Mono', weight: 600, alpha: span(t, 14.8, 15.2) * o * 0.7, spacing: 8 });
+  }
+
+  // 5 · 16–22: know what you're buying
+  if (t >= 16 && t < 22.4) {
+    const a = 1 - span(t, 21.8, 22.3);
+    radar(t, CX, CY + 40, 470, a * 0.35, 1);
+    const k = out(span(t, 16, 16.6));
+    text('Know what you\'re buying.', CX, CY - 160, 104, { weight: 900, alpha: k * a, spacing: lerp(30, -3, k) });
+    const stats = [[fmt(D.stats.launches24h), 'LAUNCHES · 24H'], [fmt(D.stats.graduated24h), 'GRADUATED · 24H'], [fmt(D.stats.serialLaunchers), 'SERIAL LAUNCHERS'], [D.stats.raisedEth24h.toFixed(1) + ' ETH', 'RAISED ON CURVES']];
+    stats.forEach(([v, l], i) => {
+      const sk = out(span(t, 17.2 + i * 0.35, 17.7 + i * 0.35));
+      const px = CX + (i - 1.5) * 400;
+      text(v, px, CY + 60 + (1 - sk) * 20, 76, { font: 'Geist Mono', weight: 700, alpha: sk * a });
+      text(l, px, CY + 130, 22, { font: 'Geist Mono', weight: 600, alpha: sk * a * 0.6, spacing: 4 });
+    });
+    line('Bonding progress · market cap · the wallet behind it · a safety grade', CX, CY + 260, t, 19.2, 22.2, 30, { weight: 600, alpha: 0.85 });
+  }
+  flash(t, 16, 0.55, 0.95);
+
+  // 6 · 22–25.5: live now
+  if (t >= 22.2) {
+    const k = out(span(t, 22.2, 22.9)), fade = 1 - span(t, 24.6, 25.5);
+    mark(CX, CY - 170, 180 * lerp(1.25, 1, k), k * fade, 50);
+    text('LIVE NOW', CX, CY + 20, 34, { font: 'Geist Mono', weight: 600, alpha: span(t, 22.6, 23) * fade, spacing: 16 });
+    text('getaeon.network/radar', CX, CY + 110, 96, { weight: 900, alpha: span(t, 22.9, 23.5) * fade, spacing: -1 });
+    text('New Token Radar  ·  Robinhood Chain  ·  read from the chain', CX, CY + 200, 28, { font: 'Geist Mono', weight: 500, alpha: span(t, 23.4, 24) * fade * 0.6, spacing: 2 });
+  }
+  flash(t, 22.2, 0.6, 0.9);
+  x.setTransform(1, 0, 0, 1, 0, 0);
+};
+document.fonts.ready.then(() => document.fonts.load('600 20px "Geist Mono"')).then(() => document.fonts.load('900 20px "Geist"')).then(() => { window.render(0); window.__ready = true; });
+</script>
+</body>
+</html>
