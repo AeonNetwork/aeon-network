@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- 3-second "DEV BUY" sting (1920x1080). Real numbers from the dev wallet's buy, tx
+<!-- 3-second "DEV BUY" sting (1920x1080), no amounts shown. From from the dev wallet's buy, tx
      0xa2179d4a5a07168f3e3eab2e70930c510d304e935fb78dc217b42d297b5f58f8. Timed to devbuy-sound.mjs. -->
 <html lang="en">
 <head>
@@ -70,15 +70,15 @@ window.render = (t) => {
   text('DEV BUY', CX, CY - 40 - up * 230, 300 * big * lerp(1, 0.62, up), { alpha: span(t, 0.1, 0.18), spacing: lerp(-4, 4, k), glow: 30 * (1 - up) });
 
   // the numbers
-  const n = Math.round(BUY.ae * out(span(t, 0.45, 1.5)));
-  const nk = span(t, 0.45, 0.6);
-  text(`${n.toLocaleString('en-US')} AE`, CX, CY + 150 - up * 160, lerp(110, 150, up), { font: 'Geist Mono', weight: 700, alpha: nk, spacing: -2, glow: up ? 20 : 0 });
+  const nk = outBack(span(t, 0.45, 0.8));
+  mark(CX - 210, CY + 150 - up * 160, 130 * lerp(0.6, 1, nk), span(t, 0.45, 0.55), 30);
+  text('$AE', CX + 90, CY + 150 - up * 160, 150 * lerp(0.6, 1, nk), { font: 'Geist Mono', weight: 700, alpha: span(t, 0.45, 0.55), glow: 20 });
   const dk = out(span(t, 1.6, 1.9));
-  text(`${BUY.eth} ETH  ·  ${BUY.pct}% OF SUPPLY  ·  DEV WALLET ${BUY.wallet}`, CX, CY + 150, 36, { font: 'Geist Mono', weight: 600, alpha: dk, spacing: 3 });
+  text(`FROM THE DEV WALLET  ·  ${BUY.wallet}`, CX, CY + 150, 36, { font: 'Geist Mono', weight: 600, alpha: dk, spacing: 3 });
   mark(CX - 520, CY + 290, 62, out(span(t, 1.75, 2.05)), 16);
   text('VERIFIED ON-CHAIN', CX - 470, CY + 290, 32, { font: 'Geist Mono', weight: 700, align: 'left', alpha: out(span(t, 1.8, 2.1)), spacing: 6 });
   text(`TX ${BUY.tx}`, CX + 560, CY + 290, 30, { font: 'Geist Mono', weight: 500, align: 'right', alpha: out(span(t, 1.85, 2.15)) * 0.7, spacing: 2 });
-  text('$AE  ·  getaeon.network/ae', CX, H - 90, 30, { font: 'Geist Mono', weight: 600, alpha: out(span(t, 2.0, 2.3)) * 0.8, spacing: 5 });
+  text('getaeon.network/ae', CX, H - 90, 30, { font: 'Geist Mono', weight: 600, alpha: out(span(t, 2.0, 2.3)) * 0.8, spacing: 5 });
 
   // flashes
   for (const [at, p] of [[0.1, 1], [1.55, 0.7]]) { const f = span(t, at, at + 0.35); if (f > 0 && f < 1) { x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = `rgba(255,255,255,${(1 - f) ** 2 * p})`; x.fillRect(0, 0, W, H); } }
