@@ -69,8 +69,28 @@ async function route() {
   reveal(main);
   $$('[data-route]').forEach((a) => a.classList.toggle('active', a.dataset.route === key));
   document.title = TITLES[key];
+  // The current page's name next to the logo, taken from its menu entry.
+  const crumb = $('#crumb');
+  if (crumb) crumb.textContent = key === 'network' ? '' : ($(`.menu [data-route="${key}"] b`)?.firstChild?.textContent || '').trim();
 }
 addEventListener('hashchange', route);
+
+// ---------------- the ☰ menu: every feature, grouped ----------------
+const menu = $('#menu'), menuBtn = $('#menuBtn');
+function setMenu(open) {
+  if (!menu || open === !menu.hidden) return;
+  menu.hidden = !open;
+  menuBtn.setAttribute('aria-expanded', String(open));
+  menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  document.body.classList.toggle('menu-open', open);
+  if (open) (menu.querySelector('a.active') || menu.querySelector('a'))?.focus({ preventScroll: true });
+  else menuBtn.focus({ preventScroll: true });
+}
+menuBtn?.addEventListener('click', () => setMenu(menu.hidden));
+$('#tabMenu')?.addEventListener('click', () => setMenu(menu.hidden));
+menu?.addEventListener('click', (e) => (e.target.closest('[data-close]') || e.target.closest('a')) && setMenu(false));
+addEventListener('keydown', (e) => e.key === 'Escape' && !menu?.hidden && setMenu(false));
+addEventListener('hashchange', () => setMenu(false));
 
 // Any [data-copy] button copies its value.
 document.addEventListener('click', (e) => {

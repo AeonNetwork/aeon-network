@@ -29,7 +29,7 @@ function mount(main, addrParam) {
       <span class="dim" style="font-size:12px;max-width:440px;text-align:right">Reads the contract and its whole history from the chain: admin powers, owner, a live transfer test, holder spread and liquidity. Every flag shows its evidence.</span>
     </div>
     <form class="search-xl reveal" id="scForm">
-      <input id="scAddr" placeholder="Token contract address (0x…)" value="${esc(addr || '')}" spellcheck="false" aria-label="Token address">
+      <input id="scAddr" placeholder="Token address (0x…)" value="${esc(addr || '')}" spellcheck="false" aria-label="Token address">
       <button class="btn btn-primary" type="submit">Scan token</button>
     </form>
     <div id="scBody" class="mt"></div>`;

@@ -27,25 +27,12 @@
 </head>
 <body>
   <header class="topbar">
+    <button class="menu-btn" id="menuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="menu"><span></span><span></span><span></span></button>
     <a href="#/" class="brand" aria-label="Aeon Network home">
       <span class="brand-mark" aria-hidden="true"></span>
       <span class="brand-word">AEON<span>NETWORK</span></span>
     </a>
-    <nav class="nav" aria-label="Main">
-      <a href="#/" data-route="network">Network</a>
-      <a href="#/pulse" data-route="pulse">Pulse</a>
-      <a href="#/scan" data-route="scan">Scanner</a>
-      <a href="#/stocks" data-route="stocks">Stocks</a>
-      <a href="#/portfolio" data-route="portfolio">Portfolio</a>
-      <a href="#/whales" data-route="whales">Whales</a>
-      <a href="#/leaderboard" data-route="leaderboard">Leaderboard</a>
-      <a href="#/explorer" data-route="explorer" class="nav-mid">Explorer</a>
-      <a href="#/ecosystem" data-route="ecosystem" class="nav-minor">Ecosystem</a>
-      <a href="#/tokens" data-route="tokens" class="nav-minor">Tokens</a>
-      <a href="#/wallet" data-route="wallet" class="nav-mid">Watchlist</a>
-      <a href="#/ai" data-route="ai">AI</a>
-      <a href="#/docs" data-route="docs" class="nav-minor">Docs</a>
-    </nav>
+    <span class="crumb" id="crumb" aria-hidden="true"></span>
     <div class="topbar-right">
       <div class="seg" id="netSwitch" role="group" aria-label="Network">
         <button data-net="mainnet">Mainnet</button>
@@ -57,15 +44,54 @@
     </div>
   </header>
 
+
+  <div class="menu" id="menu" hidden>
+    <div class="menu-scrim" data-close></div>
+    <aside class="menu-panel" role="dialog" aria-modal="true" aria-label="All features">
+      <div class="menu-head"><span>All features</span><span>Robinhood Chain · live</span></div>
+      <div class="menu-body">
+      <section>
+        <h3>Network</h3>
+        <a href="#/" data-route="network"><b>Overview</b><span>Live blocks, gas and activity</span></a>
+        <a href="#/pulse" data-route="pulse"><b>Network Pulse</b><span>Robinhood Chain today, vs yesterday</span></a>
+        <a href="#/explorer" data-route="explorer"><b>Explorer</b><span>Blocks, transactions, addresses</span></a>
+        <a href="#/ecosystem" data-route="ecosystem"><b>Ecosystem</b><span>Protocols, TVL, DEX volume, fees</span></a>
+      </section>
+      <section>
+        <h3>Stocks</h3>
+        <a href="#/stocks" data-route="stocks"><b>Tokenized stocks</b><span>Every official stock token, verified</span></a>
+        <a href="#/portfolio" data-route="portfolio"><b>Portfolio</b><span>Any wallet's stocks, valued live</span></a>
+        <a href="#/whales" data-route="whales"><b>Whale tracker</b><span>Large buys and sells, as they happen</span></a>
+        <a href="#/leaderboard" data-route="leaderboard"><b>Leaderboard</b><span>The largest stock portfolios</span></a>
+        <a href="#/tokens" data-route="tokens"><b>Tokens</b><span>All tokens on the chain</span></a>
+      </section>
+      <section>
+        <h3>Tools</h3>
+        <a href="#/scan" data-route="scan"><b>Token scanner <i>NEW</i></b><span>Is a token safe? Checked on-chain</span></a>
+        <a href="#/ai" data-route="ai"><b>AI Agent <i>NEW</i></b><span>Scans, follows whales, opens wallets</span></a>
+        <a href="#/wallet" data-route="wallet"><b>Watchlist</b><span>Addresses and tokens you follow</span></a>
+        <a href="#/check" data-route="check"><b>Wallet check</b><span>Approvals and risky tokens in a wallet</span></a>
+      </section>
+      <section>
+        <h3>Aeon</h3>
+        <a href="#/ae" data-route="ae"><b>AE token</b><span>Transparency and holder perks</span></a>
+        <a href="#/changelog" data-route="changelog"><b>What's new</b><span>Every release, newest first</span></a>
+        <a href="#/docs" data-route="docs"><b>Docs &amp; API</b><span>Guides, public API, Aeon RPC</span></a>
+        <a href="#/status" data-route="status"><b>Status</b><span>Data sources and uptime</span></a>
+      </section>
+      </div>
+      <div class="menu-foot"><a href="https://x.com/getaeon_network" target="_blank" rel="noopener">X · @getaeon_network ↗</a><a href="https://github.com/AeonNetwork/aeon-network" target="_blank" rel="noopener">GitHub ↗</a><a href="#/faq">FAQ</a></div>
+    </aside>
+  </div>
+
   <main id="view" tabindex="-1"></main>
 
   <nav class="tabbar" aria-label="Bottom navigation">
     <a href="#/" data-route="network"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M12 7v4m0 0l-5.5 5.5M12 11l5.5 5.5"/></svg>Network</a>
-    <a href="#/stocks" data-route="stocks"><svg viewBox="0 0 24 24"><path d="M4 19h16M7 16V9m5 7V5m5 11v-4"/></svg>Stocks</a>
-    <a href="#/explorer" data-route="explorer"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Explorer</a>
+    <a href="#/scan" data-route="scan"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>Scanner</a>
     <a href="#/portfolio" data-route="portfolio"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l6 4"/></svg>Portfolio</a>
-    <a href="#/wallet" data-route="wallet"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Watch</a>
     <a href="#/ai" data-route="ai"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>AI</a>
+    <button type="button" id="tabMenu" aria-controls="menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Menu</button>
   </nav>
 
   <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
