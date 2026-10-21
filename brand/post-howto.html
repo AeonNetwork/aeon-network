@@ -1,0 +1,95 @@
+<!doctype html>
+<!-- "How to" post series, 1600x900: one feature per image. ?n=<key> picks the post;
+     window.SHOT is a screenshot of the live page in the state the steps describe. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255,255,255,0.14); --line-strong: rgba(255,255,255,0.34); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .frame { position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(60% 80% at 78% 50%, #161616 0%, #050505 60%, #000 100%); }
+  .grid { position: absolute; inset: 0; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 56px 56px; opacity: 0.2; mask-image: radial-gradient(70% 70% at 25% 45%, #000, transparent 75%); }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 20px; height: 20px; border: 0 solid var(--ink); z-index: 5; }
+  .ticks::before { left: 28px; top: 28px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 28px; bottom: 28px; border-bottom-width: 3px; border-right-width: 3px; }
+
+  .copy { position: absolute; left: 84px; top: 84px; width: 560px; display: grid; gap: 22px; }
+  .head { display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 12px; font: 600 15px 'Geist Mono', monospace; letter-spacing: 0.22em; }
+  .brand span { color: var(--ink-3); }
+  .brand svg { width: 32px; height: 29px; }
+  .count { font: 500 14px 'Geist Mono', monospace; color: var(--ink-3); letter-spacing: 0.14em; }
+  .tag { justify-self: start; font: 600 14px 'Geist Mono', monospace; letter-spacing: 0.18em; background: var(--ink); color: #000; padding: 7px 12px; margin-top: 18px; }
+  h1 { margin: 0; font-size: 66px; line-height: 0.98; font-weight: 800; letter-spacing: -0.05em; }
+  h1 span { color: var(--ink-3); }
+  ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--line); }
+  li { display: grid; grid-template-columns: 48px 1fr; gap: 16px; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--line); font-size: 21px; line-height: 1.35; color: var(--ink-2); }
+  li b { color: var(--ink); font-weight: 600; }
+  li i { font-style: normal; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line-strong); font: 600 18px 'Geist Mono', monospace; color: var(--ink); }
+  li:first-child i { background: var(--ink); color: #000; border-color: var(--ink); }
+  .url { position: absolute; left: 84px; bottom: 76px; display: flex; gap: 12px; align-items: center; font: 600 19px 'Geist Mono', monospace; }
+  .url b { background: var(--ink); color: #000; padding: 10px 16px; }
+  .url em { font-style: normal; color: var(--ink-3); font-weight: 500; font-size: 16px; }
+
+  .shot { position: absolute; left: 700px; top: 120px; width: 830px; border: 1px solid var(--line-strong); background: #000; box-shadow: 0 40px 140px rgba(0,0,0,0.95); }
+  .shot::before, .shot::after { content: ''; position: absolute; width: 16px; height: 16px; border: 0 solid var(--ink); z-index: 2; }
+  .shot::before { left: -9px; top: -9px; border-top-width: 3px; border-left-width: 3px; }
+  .shot::after { right: -9px; bottom: -9px; border-bottom-width: 3px; border-right-width: 3px; }
+  .chrome { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 14px; border-bottom: 1px solid var(--line); font: 500 13px 'Geist Mono', monospace; color: var(--ink-2); }
+  .chrome em { width: 10px; height: 10px; border: 1px solid var(--line-strong); }
+  .chrome span { margin-left: 10px; }
+  .view { position: relative; width: 830px; height: 519px; overflow: hidden; }
+  .view img { position: absolute; left: 0; top: 0; width: 100%; }
+  .foot { position: absolute; left: 700px; top: 695px; width: 830px; display: flex; justify-content: space-between; font: 500 13px 'Geist Mono', monospace; color: var(--ink-3); letter-spacing: 0.06em; }
+</style>
+</head>
+<body>
+<div class="frame ticks">
+  <div class="grid"></div>
+  <div class="copy">
+    <div class="head">
+      <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
+      <div class="count" id="count"></div>
+    </div>
+    <div class="tag" id="tag"></div>
+    <h1 id="h1"></h1>
+    <ol id="steps"></ol>
+  </div>
+  <div class="url"><b id="url"></b><em id="path"></em></div>
+  <div class="shot">
+    <div class="chrome"><em></em><em></em><em></em><span id="addr"></span></div>
+    <div class="view"><img id="img" alt="" /></div>
+  </div>
+  <div class="foot"><span>Real screenshot · live data</span><span>Free · no sign-up · read-only</span></div>
+</div>
+<script>
+  const POSTS = {
+    scan: ['TOKEN SCANNER', 'Scan a token<br><span>before you buy.</span>', ['Open the <b>☰ menu</b> and tap <b>Token scanner</b>', 'Paste the token\'s <b>contract address</b> and tap <b>Scan token</b>', 'Read the <b>grade</b>, then every check and its evidence'], '/scan', 'Token scanner'],
+    ai: ['AI AGENT', 'Let the agent<br><span>do the digging.</span>', ['Open the <b>☰ menu</b> and tap <b>AI Agent</b>', 'Ask in <b>plain words</b>, or tap a suggestion', 'Watch <b>each step</b> run, then open any result'], '/ai', 'AI Agent'],
+    portfolio: ['PORTFOLIO', 'See any wallet\'s<br><span>stocks.</span>', ['Open the <b>☰ menu</b> and tap <b>Portfolio</b>', 'Paste <b>any 0x address</b>. No wallet connection needed', 'See its <b>value</b>, today\'s gain or loss and <b>every position</b>'], '/portfolio', 'Portfolio'],
+    whales: ['WHALE TRACKER', 'Follow<br><span>the whales.</span>', ['Open the <b>☰ menu</b> and tap <b>Whale tracker</b>', 'Filter by <b>size</b>, by <b>buys or sells</b>, or by one stock', 'Tap any <b>wallet</b> to open its portfolio'], '/whales', 'Whale tracker'],
+    pulse: ['NETWORK PULSE', 'Read the chain<br><span>in 30 seconds.</span>', ['Open the <b>☰ menu</b> and tap <b>Network Pulse</b>', 'Read today\'s <b>headline</b> and the <b>change since yesterday</b>', '<b>Copy</b> the summary or <b>share</b> it on X'], '/pulse', 'Network Pulse'],
+    stocks: ['TOKENIZED STOCKS', 'Spot a fake<br><span>stock token.</span>', ['Open the <b>☰ menu</b> and tap <b>Tokenized stocks</b>', 'Type a ticker in <b>Is it the real one?</b> and tap <b>Check</b>', 'The <b>official</b> contract is on top. Copies say <b>NOT OFFICIAL</b>'], '/stocks', 'Tokenized stocks'],
+    check: ['WALLET CHECK', 'Check a wallet<br><span>for risks.</span>', ['Open the <b>☰ menu</b> and tap <b>Wallet check</b>', 'Paste the <b>address</b> and tap <b>Check</b>', 'See its <b>stocks</b>, <b>copycat tokens</b> and <b>active approvals</b>'], '/check', 'Wallet check'],
+    watch: ['WATCHLIST', 'Watch<br><span>any address.</span>', ['Open the <b>☰ menu</b> and tap <b>Watchlist</b>', 'Paste an <b>address</b>, add a label, tap <b>Watch</b>', 'Get an <b>alert</b> when it moves, while the site is open'], '/wallet', 'Watchlist'],
+    ae: ['AE HOLDERS', 'Unlock<br><span>holder perks.</span>', ['Hold <b>1,000,000+ AE</b> in one wallet', 'Open <b>☰ → AE token</b> and tap <b>Verify my wallet</b>', 'Sign a <b>free</b> message: <b>4× AI</b> and a <b>Holder</b> badge'], '/ae', 'AE token'],
+  };
+  const ORDER = Object.keys(POSTS);
+  const key = new URLSearchParams(location.search).get('n') || 'scan';
+  const [tag, h1, steps, path, menu] = POSTS[key];
+  const $ = (id) => document.getElementById(id);
+  $('count').textContent = `HOW TO · ${String(ORDER.indexOf(key) + 1).padStart(2, '0')}/${String(ORDER.length).padStart(2, '0')}`;
+  $('tag').textContent = 'HOW TO · ' + tag;
+  $('h1').innerHTML = h1;
+  $('steps').innerHTML = steps.map((s, i) => `<li><i>${i + 1}</i><span>${s}</span></li>`).join('');
+  $('url').textContent = 'getaeon.network';
+  $('path').textContent = `→ ☰ → ${menu}`;
+  $('addr').textContent = 'getaeon.network' + path;
+  const img = $('img');
+  img.onload = () => document.fonts.ready.then(() => (window.__ready = true));
+  img.src = window.SHOT;
+</script>
+</body>
+</html>
