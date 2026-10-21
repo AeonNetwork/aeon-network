@@ -3,6 +3,7 @@
 
 import { NETWORKS } from '../config.js';
 import { cached } from '../lib/cache.js';
+import { postJSON } from '../lib/doh.js';
 
 export const health = Object.fromEntries(Object.keys(NETWORKS).map((k) => [k, { ok: null, latency: null, endpoint: null, error: '', at: 0 }]));
 
@@ -24,6 +25,23 @@ function logFailover(url, err, body) {
   console.warn(`[rpc] ${host} skipped (${method}): ${err.message}`);
 }
 
+// The official public RPC is reached through DNS-over-HTTPS (see lib/doh.js); keyed providers by fetch.
+const viaDoh = (url) => url === NETWORKS.mainnet.publicRpc || url === NETWORKS.testnet?.publicRpc;
+async function viaUrl(url, body, timeout = 10_000) {
+  if (viaDoh(url)) return postJSON(url, body, { timeout });
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeout) });
+  if (res.status === 429) throw new Error('rate limited');
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// Straight to the official RPC: for calls keyed providers limit, like eth_getLogs over wide ranges.
+export async function rpcPublic(net, method, params = [], timeout = 60_000) {
+  const body = await viaUrl(NETWORKS[net].publicRpc, { jsonrpc: '2.0', id: rpcId++, method, params }, timeout);
+  if (body.error) throw httpErr(body.error.message || 'rpc error', 400);
+  return body.result;
+}
+
 async function post(net, body) {
   const cfg = NETWORKS[net];
   if (!cfg) throw httpErr('unknown network', 400);
@@ -31,10 +49,7 @@ async function post(net, body) {
   for (const url of cfg.rpc) {
     const started = performance.now();
     try {
-      const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10_000) });
-      if (res.status === 429) throw new Error('rate limited');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      const json = await viaUrl(url, body);
       // Provider-level rejection (network not enabled, bad key, quota):
       // this endpoint is unusable, so fail over to the next one.
       const providerError = (e) => e && (e.code === -32600 || /not enabled|unauthori[sz]ed|api key|authenticat|capacity|limit/i.test(e.message || ''));

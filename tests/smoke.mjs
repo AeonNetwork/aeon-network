@@ -100,6 +100,11 @@ await check('token safety scan (AE)', async () => {
 });
 await check('scan rejects a wallet address', () => get(`/api/network/mainnet/scan/0x000000000000000000000000000000000000a301`, { status: 404 }));
 await check('scan rejects a bad address', () => get('/api/network/mainnet/scan/0x123', { status: 400 }));
+await check('token radar', async () => {
+  const d = (await get('/api/network/mainnet/radar?tab=new&limit=5')).body;
+  assert(d.stats && Array.isArray(d.rows), 'bad shape');
+});
+await check('radar rejects an unknown tab', () => get('/api/network/mainnet/radar?tab=nope', { status: 400 }));
 await check('scanner share page', async () => assert((await get('/scan', { json: false })).body.includes('Token Safety Scanner'), 'no scanner title'));
 await check('address lookup', () => get(`/api/network/mainnet/address/${WETH}`));
 await check('search', () => get(`/api/network/mainnet/lookup?q=${WETH}`));

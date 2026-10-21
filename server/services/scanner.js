@@ -84,6 +84,21 @@ async function dexLiquidity(net, token) {
   };
 }
 
+// The token's Pons bonding curve, if it has one: known from the radar, or found among the largest
+// contract holders (a Pons curve answers token() with the token's address).
+async function ponsCurve(net, token, holders) {
+  if (net !== 'mainnet') return null;
+  const { curveOf } = await import('./radar.js');
+  const candidates = [curveOf(token)?.curve, ...(holders?.top || []).filter((h) => h.isContract).slice(0, 2).map((h) => h.address)].filter(Boolean);
+  for (const c of [...new Set(candidates)]) {
+    const r = await safe(chain.rpcBatch(net, [['eth_call', [{ to: c, data: '0xfc0c546a' }, 'latest']], ['eth_call', [{ to: c, data: '0x4f1f58fd' }, 'latest']], ['eth_call', [{ to: c, data: '0x8b0bc501' }, 'latest']], ['eth_call', [{ to: c, data: '0xe7c2b772' }, 'latest']]]));
+    if (!r || r.some((x) => x instanceof Error || !x || x === '0x')) continue;
+    if (addrFrom(r[0]) !== token) continue;
+    return { address: c, raised: Number(BigInt(r[1])) / 1e18, threshold: Number(BigInt(r[2])) / 1e18, graduated: BigInt(r[3]) === 1n };
+  }
+  return null;
+}
+
 export function scan(net, token) {
   if (!NETWORKS[net]) throw Object.assign(new Error('unknown network'), { status: 400 });
   if (!ADDR.test(token || '')) throw Object.assign(new Error('Enter a token contract address (0x + 40 hex characters)'), { status: 400 });
@@ -199,7 +214,11 @@ async function run(net, token) {
     add('holders', level, level === 'pass' ? 'Supply is spread out' : 'Supply is concentrated', `Top 10 wallets hold ${t.toFixed(1)}%, the largest ${l.toFixed(1)}%${holders.contractsPct ? `; contracts (pools, curves, vaults) hold ${holders.contractsPct.toFixed(1)}%` : ''}.`, issuer ? 0 : level === 'fail' ? 15 : level === 'warn' ? 7 : 0);
   } else add('holders', 'info', 'Holder spread not measured', 'History too long to rebuild here and no saved holder list.');
 
-  if (dex) {
+  // Launched on Pons and still on its bonding curve? Then the curve is the market, not a DEX pool.
+  const curve = await ponsCurve(net, token, holders);
+  if (curve && !curve.graduated) {
+    add('liquidity', 'info', 'Trading on the Pons bonding curve', `${curve.raised.toFixed(3)} ETH raised of ${curve.threshold} ETH needed to graduate (${Math.round((curve.raised / curve.threshold) * 100)}%). Curve ${curve.address}.`);
+  } else if (dex) {
     if (!dex.pairs) add('liquidity', issuer ? 'info' : 'warn', 'No DEX pool found', issuer ? 'Stock tokens trade through Robinhood rather than DEX pools.' : 'DEX Screener lists no pool. If it launched on a bonding curve (e.g. Pons), trading happens on the curve until it graduates.', issuer ? 0 : 8);
     else if (dex.liquidityUsd < 5000) add('liquidity', 'warn', 'Thin DEX liquidity', `$${dex.liquidityUsd.toFixed(2)} across ${dex.pairs} pool(s). Large sells will move the price a lot.${holders?.contractsPct > 50 ? ` A contract holds ${holders.contractsPct.toFixed(0)}% of supply: if that is a bonding curve (e.g. Pons), most trading happens there until it graduates.` : ''}`, issuer ? 0 : 8);
     else add('liquidity', 'pass', 'DEX liquidity', `$${Math.round(dex.liquidityUsd).toLocaleString('en-US')} across ${dex.pairs} pool(s).`);

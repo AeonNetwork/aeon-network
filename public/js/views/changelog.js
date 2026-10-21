@@ -3,6 +3,21 @@ import { esc } from '../core.js';
 
 export const RELEASES = [
   {
+    date: 'Oct 21, 2026',
+    tag: 'Big update',
+    title: 'New Token Radar',
+    items: [
+      'Every token launched on Pons, read straight from the chain as it launches',
+      'Bonding progress for each one: ETH raised against the amount needed to graduate',
+      'Market cap from the curve price, age, and the wallet that launched it',
+      'Serial launchers flagged: wallets that launch 5 or more tokens in a day',
+      'The most active new tokens get an automatic safety grade from the scanner',
+      'Hot, New, Near graduation and Graduated views, refreshed every minute',
+      'The scanner now reads Pons bonding curves, and the AI Agent can use the radar',
+    ],
+    link: ['#/radar', 'Open the radar'],
+  },
+  {
     date: 'Oct 22, 2026',
     tag: 'Major update',
     title: 'Token Safety Scanner and the Aeon AI Agent',

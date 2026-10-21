@@ -26,7 +26,7 @@ How you work:
 You are an agent, not just a chat:
 - For a question that needs several facts, call every tool you need (in parallel when they are independent) before answering. Chain them: e.g. find a wallet with get_whales, then open it with get_portfolio.
 - "Is this token safe / a rug / a honeypot?" → scan_token. Report the grade, the serious flags with their evidence, and what the scan cannot prove. Never call a token safe; say what was checked.
-- Whale moves → get_whales. A wallet's stock holdings → get_portfolio. Largest holders → get_leaderboard. "How is the network today" → get_network_pulse. Questions about Aeon's own token (AE, contract 0xb4fc414ac279bb3136e3cf7ec5084846af3bb459 on mainnet) → get_aeon_token; to judge its risk, scan_token that address.
+- Whale moves → get_whales. A wallet's stock holdings → get_portfolio. Largest holders → get_leaderboard. "How is the network today" → get_network_pulse. New tokens, launches, "what's hot on Pons" → get_new_tokens, then scan_token the ones worth a closer look. Questions about Aeon's own token (AE, contract 0xb4fc414ac279bb3136e3cf7ec5084846af3bb459 on mainnet) → get_aeon_token; to judge its risk, scan_token that address.
 - End answers built from tools with a one-line "Sources:" naming the tools' data sources (RPC, Alchemy, DEX Screener, DefiLlama, CoinGecko, Aeon indexer).
 - Never give price predictions or tell anyone to buy or sell.`;
 
@@ -95,13 +95,18 @@ TOOLS.push(
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'get_new_tokens',
+    description: 'New Token Radar: tokens launched on Pons (the Robinhood Chain launchpad) in the last 24 hours, read from the chain. Per token: symbol, age, ETH raised on its bonding curve vs the graduation threshold, market cap, graduated or not, the creator wallet and how many tokens it launched today (serial launchers), and a safety grade when scanned. Plus 24h totals.',
+    input_schema: { type: 'object', properties: { tab: { type: 'string', enum: ['hot', 'new', 'near', 'graduated'], description: 'hot = most ETH raised, new = newest, near = close to graduating, graduated = filled their curve' } }, additionalProperties: false },
+  },
+  {
     name: 'get_aeon_token',
     description: "Aeon Network's own token AE (launched on Pons): contract, supply, holders, top holders with labels, burned share, the creator wallet's balance and the holder perks.",
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
   },
 );
-const TOOL_LABEL = { get_network_overview: 'Reading network state', get_block: 'Opening block', get_transaction: 'Decoding transaction', get_address: 'Inspecting address', get_ecosystem: 'Loading ecosystem data', get_stock_tokens: 'Loading tokenized stocks', verify_token: 'Verifying token', scan_token: 'Scanning token contract', get_whales: 'Reading whale trades', get_portfolio: 'Opening portfolio', get_leaderboard: 'Loading leaderboard', get_network_pulse: 'Taking the network pulse', get_aeon_token: 'Reading the AE token' };
-const NO_NET = ['get_ecosystem', 'get_stock_tokens', 'verify_token', 'get_whales', 'get_portfolio', 'get_leaderboard', 'get_network_pulse', 'get_aeon_token'];
+const TOOL_LABEL = { get_network_overview: 'Reading network state', get_block: 'Opening block', get_transaction: 'Decoding transaction', get_address: 'Inspecting address', get_ecosystem: 'Loading ecosystem data', get_stock_tokens: 'Loading tokenized stocks', verify_token: 'Verifying token', scan_token: 'Scanning token contract', get_whales: 'Reading whale trades', get_portfolio: 'Opening portfolio', get_leaderboard: 'Loading leaderboard', get_network_pulse: 'Taking the network pulse', get_aeon_token: 'Reading the AE token', get_new_tokens: 'Reading the token radar' };
+const NO_NET = ['get_ecosystem', 'get_stock_tokens', 'verify_token', 'get_whales', 'get_portfolio', 'get_leaderboard', 'get_network_pulse', 'get_aeon_token', 'get_new_tokens'];
 
 const ADDR = /^0x[0-9a-fA-F]{40}$/;
 const HASH = /^0x[0-9a-fA-F]{64}$/;
@@ -197,6 +202,11 @@ async function runTool(name, input) {
       const { pulse } = await import('./pulse.js');
       return (await pulse()).value;
     }
+    case 'get_new_tokens': {
+      const { radar } = await import('./radar.js');
+      const d = await radar({ tab: input.tab || 'hot', limit: 15 });
+      return { ...d, page: 'https://getaeon.network/#/radar', note: 'Pons tokens trade on a bonding curve until they raise the threshold, then graduate to a DEX. A serial launcher is a wallet that launched 5+ tokens today: treat with care.' };
+    }
     case 'get_aeon_token': {
       const { tokenInfo } = await import('./aeon.js');
       const t = (await tokenInfo()).value;
@@ -251,6 +261,7 @@ function summarize(name, o) {
       case 'get_portfolio': return `${o.holdings.length} stock positions, ${usd(o.stocksValueUsd)}`;
       case 'get_leaderboard': return o.rows?.length ? `top wallet ${usd(o.rows[0].valueUsd)}` : 'ranking is being built';
       case 'get_network_pulse': return o.headline;
+      case 'get_new_tokens': return `${o.stats.launches24h} launches in 24h, ${o.stats.graduated24h} graduated`;
       case 'get_aeon_token': return `${o.holders ?? '?'} holders, ${o.burnedPct.toFixed(1)}% burned`;
       case 'get_transaction': return o.status ? `status ${o.status}` : 'decoded';
       case 'get_block': return `${o.transactionsShown ?? 0} transactions`;
