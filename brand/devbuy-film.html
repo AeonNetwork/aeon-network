@@ -1,0 +1,93 @@
+<!doctype html>
+<!-- 3-second "DEV BUY" sting (1920x1080). Real numbers from the dev wallet's buy, tx
+     0xa2179d4a5a07168f3e3eab2e70930c510d304e935fb78dc217b42d297b5f58f8. Timed to devbuy-sound.mjs. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+const x = document.getElementById('c').getContext('2d');
+const BUY = { ae: 5472762, eth: 0.019, pct: 0.55, tx: '0xa2179d4a…7b5f58f8', wallet: '0xa22b…d4A1' };
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const out = (k) => 1 - (1 - k) ** 3;
+const outBack = (k) => 1 + 2.4 * (k - 1) ** 3 + 1.4 * (k - 1) ** 2;
+const lerp = (a, b, k) => a + (b - a) * k;
+
+const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'].map((d) => new Path2D(d));
+const SPR = new OffscreenCanvas(1040, 940);
+{ const g = SPR.getContext('2d'); g.scale(5, 5); g.translate(-96, -106); g.fillStyle = '#fff'; AE.forEach((p) => g.fill(p)); }
+const mark = (cx, cy, h, a, glow = 0) => { if (a <= 0) return; const w = (208 / 188) * h; x.save(); x.globalAlpha = a; if (glow) (x.shadowColor = '#fff'), (x.shadowBlur = glow); x.drawImage(SPR, cx - w / 2, cy - h / 2, w, h); x.restore(); };
+function text(str, px, py, size, { weight = 900, font = 'Geist', color = '#fff', alpha = 1, spacing = 0, align = 'center', glow = 0 } = {}) {
+  if (alpha <= 0) return;
+  x.save(); x.globalAlpha = alpha;
+  x.font = `${weight} ${size}px "${font}"`; x.letterSpacing = spacing + 'px';
+  x.textAlign = align; x.textBaseline = 'middle'; x.fillStyle = color;
+  if (glow) (x.shadowColor = '#fff'), (x.shadowBlur = glow);
+  x.fillText(str, px, py); x.restore();
+}
+// speed lines rushing out from the centre
+let seed = 7;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const RAYS = Array.from({ length: 140 }, () => ({ a: rnd() * Math.PI * 2, s: 0.6 + rnd() * 1.4, o: rnd(), w: 1 + rnd() * 2.5 }));
+function rays(t, power) {
+  if (power <= 0) return;
+  x.save(); x.strokeStyle = '#fff';
+  for (const r of RAYS) {
+    const d = ((t * r.s * 1.6 + r.o) % 1);
+    const r0 = 120 + d * 1300, r1 = r0 + 60 + d * 260;
+    x.globalAlpha = power * (1 - d) * 0.55; x.lineWidth = r.w;
+    x.beginPath(); x.moveTo(CX + Math.cos(r.a) * r0, CY + Math.sin(r.a) * r0); x.lineTo(CX + Math.cos(r.a) * r1, CY + Math.sin(r.a) * r1); x.stroke();
+  }
+  x.restore();
+}
+function ring(t, at, a) {
+  const k = span(t, at, at + 0.7);
+  if (k <= 0 || k >= 1) return;
+  x.save(); x.globalAlpha = (1 - k) * a; x.strokeStyle = '#fff'; x.lineWidth = 6 * (1 - k) + 1;
+  x.beginPath(); x.arc(CX, CY, 80 + out(k) * 1100, 0, Math.PI * 2); x.stroke(); x.restore();
+}
+
+window.render = (t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  const sh = (at, amt) => { const k = span(t, at, at + 0.35); return k > 0 && k < 1 ? Math.sin(t * 120) * amt * (1 - k) ** 2 : 0; };
+  const s = sh(0.12, 26) + sh(1.55, 18);
+  x.setTransform(1, 0, 0, 1, s, -s * 0.5);
+
+  rays(t, span(t, 0.1, 0.3) * (1 - span(t, 2.6, 3.0)));
+  ring(t, 0.12, 1); ring(t, 1.55, 0.8);
+
+  // DEV BUY slams in
+  const k = outBack(span(t, 0.1, 0.42));
+  const big = lerp(2.6, 1, k);
+  const up = out(span(t, 1.45, 1.8));
+  text('DEV BUY', CX, CY - 40 - up * 230, 300 * big * lerp(1, 0.62, up), { alpha: span(t, 0.1, 0.18), spacing: lerp(-4, 4, k), glow: 30 * (1 - up) });
+
+  // the numbers
+  const n = Math.round(BUY.ae * out(span(t, 0.45, 1.5)));
+  const nk = span(t, 0.45, 0.6);
+  text(`${n.toLocaleString('en-US')} AE`, CX, CY + 150 - up * 160, lerp(110, 150, up), { font: 'Geist Mono', weight: 700, alpha: nk, spacing: -2, glow: up ? 20 : 0 });
+  const dk = out(span(t, 1.6, 1.9));
+  text(`${BUY.eth} ETH  ·  ${BUY.pct}% OF SUPPLY  ·  DEV WALLET ${BUY.wallet}`, CX, CY + 150, 36, { font: 'Geist Mono', weight: 600, alpha: dk, spacing: 3 });
+  mark(CX - 520, CY + 290, 62, out(span(t, 1.75, 2.05)), 16);
+  text('VERIFIED ON-CHAIN', CX - 470, CY + 290, 32, { font: 'Geist Mono', weight: 700, align: 'left', alpha: out(span(t, 1.8, 2.1)), spacing: 6 });
+  text(`TX ${BUY.tx}`, CX + 560, CY + 290, 30, { font: 'Geist Mono', weight: 500, align: 'right', alpha: out(span(t, 1.85, 2.15)) * 0.7, spacing: 2 });
+  text('$AE  ·  getaeon.network/ae', CX, H - 90, 30, { font: 'Geist Mono', weight: 600, alpha: out(span(t, 2.0, 2.3)) * 0.8, spacing: 5 });
+
+  // flashes
+  for (const [at, p] of [[0.1, 1], [1.55, 0.7]]) { const f = span(t, at, at + 0.35); if (f > 0 && f < 1) { x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = `rgba(255,255,255,${(1 - f) ** 2 * p})`; x.fillRect(0, 0, W, H); } }
+  // fade out
+  const fo = span(t, 2.75, 3.0);
+  if (fo > 0) { x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = `rgba(0,0,0,${fo * 0.6})`; x.fillRect(0, 0, W, H); }
+  x.setTransform(1, 0, 0, 1, 0, 0);
+};
+document.fonts.ready.then(() => document.fonts.load('900 20px "Geist"')).then(() => document.fonts.load('700 20px "Geist Mono"')).then(() => { window.render(0); window.__ready = true; });
+</script>
+</body>
+</html>
