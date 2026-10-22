@@ -1,6 +1,14 @@
 // Central configuration. Everything can be overridden from .env so the same
 // build runs locally, on a VPS, or with paid RPC/API plans.
 
+// Load the project's .env by its own path. `--env-file` resolves against the working directory,
+// which a process manager started at boot may not set; variables already set are kept.
+try {
+  process.loadEnvFile(new URL('../.env', import.meta.url));
+} catch {
+  /* no .env: environment variables only */
+}
+
 const env = process.env;
 const list = (v) => (v || '').split(',').map((s) => s.trim()).filter(Boolean);
 
