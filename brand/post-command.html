@@ -1,0 +1,68 @@
+<!doctype html>
+<!-- X post: "you described it, we built it" for the Command Center, 1600x900. Quotes a public post by
+     @0xMufty with attribution; window.DESK / window.PHONE are screenshots of the live page. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #fafafa; --ink-2: #a3a3a3; --ink-3: #6b6b6b; --line: rgba(255,255,255,0.14); --line-strong: rgba(255,255,255,0.34); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .frame { position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(60% 80% at 75% 50%, #161616 0%, #050505 60%, #000 100%); }
+  .grid { position: absolute; inset: 0; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 56px 56px; opacity: 0.2; mask-image: radial-gradient(70% 70% at 25% 45%, #000, transparent 75%); }
+  .ticks::before, .ticks::after { content: ''; position: absolute; width: 20px; height: 20px; border: 0 solid var(--ink); z-index: 5; }
+  .ticks::before { left: 28px; top: 28px; border-top-width: 3px; border-left-width: 3px; }
+  .ticks::after { right: 28px; bottom: 28px; border-bottom-width: 3px; border-right-width: 3px; }
+  .copy { position: absolute; left: 84px; top: 76px; width: 560px; display: grid; gap: 22px; z-index: 2; }
+  .brand { display: flex; align-items: center; gap: 12px; font: 600 16px 'Geist Mono', monospace; letter-spacing: 0.22em; }
+  .brand span { color: var(--ink-3); }
+  .brand svg { width: 34px; height: 31px; }
+  .quote { margin-top: 8px; padding: 22px 24px; border: 1px solid var(--line-strong); background: rgba(0,0,0,0.7); display: grid; gap: 12px; }
+  .quote p { margin: 0; font-size: 23px; line-height: 1.4; color: var(--ink); }
+  .quote p b { background: var(--ink); color: #000; padding: 0 6px; font-weight: 700; }
+  .quote small { font: 500 14px 'Geist Mono', monospace; color: var(--ink-3); letter-spacing: 0.06em; }
+  .arrow { font: 600 14px 'Geist Mono', monospace; letter-spacing: 0.18em; color: var(--ink-3); }
+  h1 { margin: 0; font-size: 82px; line-height: 0.95; font-weight: 900; letter-spacing: -0.055em; }
+  h1 span { color: var(--ink-3); }
+  .url { position: absolute; left: 84px; bottom: 76px; display: flex; gap: 12px; align-items: center; font: 600 20px 'Geist Mono', monospace; z-index: 2; }
+  .url b { background: var(--ink); color: #000; padding: 10px 16px; }
+  .url em { font-style: normal; color: var(--ink-3); font-weight: 500; font-size: 15px; }
+  .desk { position: absolute; left: 700px; top: 96px; width: 840px; border: 1px solid var(--line-strong); background: #000; box-shadow: 0 40px 140px rgba(0,0,0,0.95); }
+  .desk .chrome { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 14px; border-bottom: 1px solid var(--line); font: 500 13px 'Geist Mono', monospace; color: var(--ink-2); }
+  .desk .chrome em { width: 10px; height: 10px; border: 1px solid var(--line-strong); }
+  .desk .chrome span { margin-left: 10px; }
+  .desk .chrome i { margin-left: auto; font-style: normal; display: flex; align-items: center; gap: 8px; color: var(--ink); }
+  .desk .chrome i::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 10px #fff; }
+  .desk img { display: block; width: 100%; }
+  .phone { position: absolute; right: 60px; bottom: 40px; width: 250px; padding: 9px; border: 1px solid var(--line-strong); border-radius: 34px; background: #000; box-shadow: 0 30px 100px rgba(0,0,0,0.95), 0 0 0 6px #000; }
+  .phone img { display: block; width: 100%; border-radius: 26px; }
+</style>
+</head>
+<body>
+<div class="frame ticks">
+  <div class="grid"></div>
+  <div class="copy">
+    <div class="brand"><svg viewBox="96 106 208 188"><g fill="#fff"><polygon points="100,290 138,290 230,124 230,110 200,110"/><polygon points="158.3,185 286,185 286,215 141.7,215"/><rect x="200" y="110" width="100" height="30"/><rect x="214" y="110" width="30" height="180"/><rect x="214" y="260" width="86" height="30"/></g></svg>AEON <span>NETWORK</span></div>
+    <div class="quote">
+      <p>“Robinhood Chain’s live command center. Real-time <b>stock tokens + meme radar</b> in <b>one clean dashboard</b>.”</p>
+      <small>— @0xMufty on X</small>
+    </div>
+    <div class="arrow">↓ SO WE BUILT EXACTLY THAT</div>
+    <h1>Command Center.<br /><span>Live now.</span></h1>
+  </div>
+  <div class="url"><b>getaeon.network/live</b><em id="stamp"></em></div>
+  <div class="desk">
+    <div class="chrome"><em></em><em></em><em></em><span>getaeon.network/live</span><i>LIVE</i></div>
+    <img id="desk" alt="" />
+  </div>
+  <div class="phone"><img id="phone" alt="" /></div>
+</div>
+<script>
+  document.getElementById('stamp').textContent = '→ screenshot ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+  let n = 0;
+  const done = () => ++n === 2 && document.fonts.ready.then(() => (window.__ready = true));
+  for (const [id, src] of [['desk', window.DESK], ['phone', window.PHONE]]) { const el = document.getElementById(id); el.onload = done; el.src = src; }
+</script>
+</body>
+</html>
