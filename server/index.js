@@ -21,6 +21,7 @@ import * as aeon from './services/aeon.js';
 import * as scanner from './services/scanner.js';
 import * as radar from './services/radar.js';
 import * as devcheck from './services/devcheck.js';
+import { command } from './services/command.js';
 import * as pulse from './services/pulse.js';
 
 installDoh();
@@ -325,6 +326,8 @@ app.get(
 );
 app.get('/api/network/:net/portfolio-example', api((req) => insights.portfolioExample(net(req)), 300));
 // Token Safety Scanner: a scan reads up to ~10k transfers, so it gets its own per-IP limit.
+// Command Center: chain vitals, stock movers, the meme radar and whales in one call (mainnet).
+app.get('/api/network/:net/command', api((req) => { if (net(req) !== 'mainnet') throw Object.assign(new Error('The command center covers mainnet'), { status: 404 }); return command(); }, 10));
 // Dev Checker: a creator's Pons history (mainnet); one check reads up to 60 tokens, so it has its own limit.
 app.get('/api/network/:net/dev/:addr', ipLimiter({ max: 20, windowMs: 10 * 60_000 }), api((req) => { if (net(req) !== 'mainnet') throw Object.assign(new Error('The Dev Checker covers mainnet'), { status: 404 }); return devcheck.devCheck(req.params.addr); }, 60));
 // New Token Radar: Pons launches with their bonding-curve state (mainnet).
@@ -563,6 +566,7 @@ const PAGES = {
   stocks: ['Tokenized Stocks · Aeon Network', 'All official ERC-8056 stock tokens on Robinhood Chain, and a check that tells them from copycats.', 'stocks'],
   ai: ['Aeon AI Agent · Aeon Network', 'An AI agent for Robinhood Chain: it scans tokens, follows whales, opens wallets and reads the chain before it answers.', 'ai'],
   pulse: ['Network Pulse · Aeon Network', 'Robinhood Chain today: transactions, fees, DEX volume, TVL, stablecoins and whales, with day-over-day change.', 'pulse'],
+  live: ['Command Center · Aeon Network', 'Robinhood Chain on one screen: stock tokens moving most today, the meme radar, whales and chain vitals, live.', 'live'],
   dev: ['Dev Checker · Aeon Network', "Paste a token creator's wallet: every token they launched on Pons, how many graduated, and whether they sold, burned or moved their own tokens.", 'dev'],
   radar: ['New Token Radar · Aeon Network', 'Every new token on Robinhood Chain as it launches: bonding progress, market cap, the creator behind it and an automatic safety grade.', 'radar'],
   scan: ['Token Safety Scanner · Aeon Network', 'Paste any token on Robinhood Chain: admin powers, owner, a live honeypot test, holder spread and liquidity, read from the chain.', 'scan'],

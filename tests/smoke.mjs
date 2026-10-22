@@ -104,6 +104,10 @@ await check('token radar', async () => {
   const d = (await get('/api/network/mainnet/radar?tab=new&limit=5')).body;
   assert(d.stats && Array.isArray(d.rows), 'bad shape');
 });
+await check('command center', async () => {
+  const d = (await get('/api/network/mainnet/command')).body;
+  assert(d.chain?.block > 0 && d.stocks && d.whales, 'bad shape');
+});
 await check('dev checker (AE creator)', async () => {
   const d = (await get('/api/network/mainnet/dev/0xa22b97201Dda33bF5946CF991757Af904532d4A1')).body;
   assert(d.stats?.launches >= 1 && Array.isArray(d.rows) && d.risk, 'bad shape');

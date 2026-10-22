@@ -4,6 +4,19 @@ import { esc } from '../core.js';
 export const RELEASES = [
   {
     date: 'Oct 22, 2026',
+    tag: 'New',
+    title: 'Command Center',
+    items: [
+      'Robinhood Chain on one screen: stock tokens, the meme radar and the whales, refreshed every 15 seconds',
+      'Stock tokens moving most today: top gainers, top losers and the most traded',
+      'Meme radar: the hottest Pons launches with bonding progress, market cap and safety grades, plus the ones that just launched',
+      'Whale feed with today’s buy and sell totals; chain vitals with a block counter that ticks live',
+      'In the bottom bar on phones, as Live',
+    ],
+    link: ['#/live', 'Open the Command Center'],
+  },
+  {
+    date: 'Oct 22, 2026',
     tag: 'Big update',
     title: 'Dev Checker, whale alerts and portfolio share cards',
     items: [

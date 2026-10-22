@@ -26,7 +26,7 @@ function mount(main) {
   <section class="box hero reveal">
     <div class="hero-main">
       <div>
-        <a class="whatsnew" href="#/dev"><span>NEW</span>Dev Checker, whale alerts and portfolio share cards →</a>
+        <a class="whatsnew" href="#/live"><span>NEW</span>Command Center: stocks, meme radar and whales on one screen →</a>
         <div class="kicker">${esc(n.name)} · ${isMain ? 'Mainnet' : 'Testnet'} · Chain ID ${n.chainId}</div>
         <div class="hero-block mt" id="hBlock">#—</div>
         <p class="hero-title">The live hub for Robinhood Chain. Every block, transaction and protocol, as it happens.</p>
