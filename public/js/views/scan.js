@@ -88,6 +88,7 @@ function mount(main, addrParam) {
               <a class="btn btn-sm" target="_blank" rel="noopener" href="https://x.com/intent/post?text=${encodeURIComponent(shareText + '\n\nvia @getaeon_network')}&url=${encodeURIComponent(location.origin + '/scan')}">Share on X</a>
               <button class="btn btn-sm" id="scCopy">Copy result</button>
               <a class="btn btn-sm" href="#/ai" id="scAsk">Ask the AI about it</a>
+              ${s.pons?.creator ? `<a class="btn btn-sm" href="#/dev/${s.pons.creator}">Check the dev →</a>` : ''}
               ${s.dex?.url ? `<a class="btn btn-sm" target="_blank" rel="noopener noreferrer" href="${esc(s.dex.url)}">Chart ↗</a>` : ''}
             </div>
           </div>

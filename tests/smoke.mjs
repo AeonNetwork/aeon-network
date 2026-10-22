@@ -104,6 +104,11 @@ await check('token radar', async () => {
   const d = (await get('/api/network/mainnet/radar?tab=new&limit=5')).body;
   assert(d.stats && Array.isArray(d.rows), 'bad shape');
 });
+await check('dev checker (AE creator)', async () => {
+  const d = (await get('/api/network/mainnet/dev/0xa22b97201Dda33bF5946CF991757Af904532d4A1')).body;
+  assert(d.stats?.launches >= 1 && Array.isArray(d.rows) && d.risk, 'bad shape');
+});
+await check('dev checker rejects a bad address', () => get('/api/network/mainnet/dev/0x123', { status: 400 }));
 await check('radar rejects an unknown tab', () => get('/api/network/mainnet/radar?tab=nope', { status: 400 }));
 await check('scanner share page', async () => assert((await get('/scan', { json: false })).body.includes('Token Safety Scanner'), 'no scanner title'));
 await check('address lookup', () => get(`/api/network/mainnet/address/${WETH}`));

@@ -40,30 +40,38 @@ let lastRun = null;
 const grades = new Map(); // token -> { grade, score, at }
 
 // ---------- the official RPC, paced (it allows ~15 calls/s in small batches) ----------
-let next = 0;
-const pace = async (ms) => {
-  const now = Date.now(), at = Math.max(now, next);
-  next = at + ms;
+// Two lanes: single calls (logs, block numbers; also the Dev Checker's) never queue behind the
+// radar's bulk curve reads, which take one batch every 1.5 s.
+const lanes = { single: 0, bulk: 0 };
+const pace = async (lane, ms) => {
+  const now = Date.now(), at = Math.max(now, lanes[lane]);
+  lanes[lane] = at + ms;
   if (at > now) await new Promise((r) => setTimeout(r, at - now));
 };
 let id = 0;
-async function rpc(method, params) {
-  await pace(150);
-  const r = await postJSON(NETWORKS[NET].publicRpc, { jsonrpc: '2.0', id: ++id, method, params }, { timeout: 60_000 });
-  if (r.error) throw new Error(r.error.message);
-  return r.result;
+async function rpc(method, params, attempt = 0) {
+  await pace('single', 150);
+  try {
+    const r = await postJSON(NETWORKS[NET].publicRpc, { jsonrpc: '2.0', id: ++id, method, params }, { timeout: 60_000 });
+    if (r.error) throw new Error(r.error.message);
+    return r.result;
+  } catch (err) {
+    if (attempt >= 3 || !/rate limited|timeout|ECONNRESET/i.test(err.message)) throw err;
+    await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
+    return rpc(method, params, attempt + 1);
+  }
 }
 // Many eth_calls, 20 per request, one request every 1.5 s. Returns results in order (null on failure).
 async function calls(list) {
   const out = new Array(list.length).fill(null);
   for (let i = 0; i < list.length; i += 20) {
     const part = list.slice(i, i + 20);
-    await pace(1500);
+    await pace('bulk', 1500);
     try {
       const res = await postJSON(NETWORKS[NET].publicRpc, part.map(([to, data], k) => ({ jsonrpc: '2.0', id: k, method: 'eth_call', params: [{ to, data }, 'latest'] })), { timeout: 30_000 });
       for (const r of Array.isArray(res) ? res : []) if (!r.error && r.result && r.result !== '0x') out[i + r.id] = r.result;
     } catch (err) {
-      if (/rate limited/.test(err.message)) next = Date.now() + 30_000; // back off
+      if (/rate limited/.test(err.message)) lanes.bulk = Date.now() + 30_000; // back off
     }
   }
   return out;
@@ -292,3 +300,8 @@ export async function radar({ tab = 'hot', limit = 50 } = {}) {
   };
 }
 export const radarStatus = () => lastRun;
+
+// Shared with the Dev Checker: the factory, the curve selectors, the paced official-RPC client
+// and the decoders, so both stay within the RPC's rate limit together.
+export const PONS = { FACTORY, LAUNCH, SEL, FIRST_BLOCK: 26_840_000 };
+export { rpc as ponsRpc, calls as ponsCalls, str as decodeString, eth as toEth };

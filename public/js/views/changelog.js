@@ -3,6 +3,22 @@ import { esc } from '../core.js';
 
 export const RELEASES = [
   {
+    date: 'Oct 22, 2026',
+    tag: 'Big update',
+    title: 'Dev Checker, whale alerts and portfolio share cards',
+    items: [
+      'Dev Checker: paste a creator wallet and see every token it ever launched on Pons, from the factory’s own records',
+      'How each launch did (graduated, live or dead) and what the dev did with their own tokens: bought, sold into buyers, burned or moved to other wallets',
+      'Red flags with evidence: serial launching, selling into buyers, hidden wallets, launches that never take off',
+      'Every creator on the Token Radar and every Pons token in the scanner now links straight to its dev check',
+      'Whale alerts: pick a size, buys or sells and the stocks you care about, and get a browser notification the moment a whale trades',
+      'Portfolio share cards: turn any wallet’s stock portfolio into an image ready to post',
+      'The AI Agent can check a dev on its own',
+      'Steadier servers: the site now loads its settings by itself after a restart',
+    ],
+    link: ['#/dev', 'Check a dev'],
+  },
+  {
     date: 'Oct 21, 2026',
     tag: 'Big update',
     title: 'New Token Radar',

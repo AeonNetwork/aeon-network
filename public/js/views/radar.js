@@ -78,7 +78,7 @@ function mount(main) {
               <td class="mono dim" ${r.time ? `data-time="${r.time}"` : ''}>${r.time ? (r.exactTime ? '' : '≈ ') + ago(r.time) : '—'}</td>
               <td>${r.graduated ? '<span class="tag solid">GRADUATED</span>' : `${bar(r.progress)}<small class="mono">${r.quote ? (r.quote.raised == null ? 'reading…' : `${fmtNum(r.quote.raised, 0)} / ${fmtNum(r.quote.threshold, 0)} ${esc(r.quote.symbol)}`) : r.raisedEth == null ? 'reading…' : `${fmtNum(r.raisedEth, 3)} / ${r.thresholdEth ?? '?'} ETH`}</small>`}</td>
               <td class="num mono">${r.graduated ? '<span class="dim">on DEX</span>' : r.quote ? '<span class="dim">—</span>' : usd(r.mcapEth)}</td>
-              <td>${addrLink(r.creator, 6)}${r.creatorLaunches24h >= 5 ? ` <span class="tag" title="This wallet launched ${r.creatorLaunches24h} tokens in 24 hours">SERIAL ×${r.creatorLaunches24h}</span>` : r.creatorLaunches24h > 1 ? ` <span class="dim mono">×${r.creatorLaunches24h}</span>` : ''}</td>
+              <td><a class="mono link" href="#/dev/${r.creator}" title="Check this dev">${esc(short(r.creator, 6))}</a>${r.creatorLaunches24h >= 5 ? ` <span class="tag" title="This wallet launched ${r.creatorLaunches24h} tokens in 24 hours">SERIAL ×${r.creatorLaunches24h}</span>` : r.creatorLaunches24h > 1 ? ` <span class="dim mono">×${r.creatorLaunches24h}</span>` : ''}</td>
               <td class="num">${grade(r.scan)}</td>
             </tr>`,
                   )

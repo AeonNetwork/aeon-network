@@ -1,6 +1,7 @@
 import { state, api, on, emit, $, $$, prefs, short, toast } from './core.js';
 import { reveal, auroraPulse } from './fx.js';
 import { startWatch } from './watch.js';
+import { startAlerts } from './alerts.js';
 import { chooseWallet, restore } from './wallet.js';
 
 // Every route lives under the network: #/, #/explorer/..., #/ecosystem, #/tokens, #/wallet, #/ai
@@ -14,6 +15,7 @@ const views = {
   pulse: () => import('./views/pulse.js'),
   scan: () => import('./views/scan.js'),
   radar: () => import('./views/radar.js'),
+  dev: () => import('./views/dev.js'),
   explorer: () => import('./views/explorer.js'),
   ecosystem: () => import('./views/ecosystem.js'),
   tokens: () => import('./views/tokens.js'),
@@ -38,6 +40,7 @@ const TITLES = {
   pulse: 'Network Pulse · Aeon Network',
   scan: 'Token Safety Scanner · Aeon Network',
   radar: 'New Token Radar · Aeon Network',
+  dev: 'Dev Checker · Aeon Network',
   explorer: 'Explorer · Aeon Network',
   ecosystem: 'Ecosystem · Aeon Network',
   tokens: 'Tokens · Aeon Network',
@@ -228,6 +231,7 @@ async function boot() {
   connectStream();
   restore();
   startWatch();
+  startAlerts();
   route();
 }
 boot();

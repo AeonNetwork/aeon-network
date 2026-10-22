@@ -91,10 +91,10 @@ async function ponsCurve(net, token, holders) {
   const { curveOf } = await import('./radar.js');
   const candidates = [curveOf(token)?.curve, ...(holders?.top || []).filter((h) => h.isContract).slice(0, 2).map((h) => h.address)].filter(Boolean);
   for (const c of [...new Set(candidates)]) {
-    const r = await safe(chain.rpcBatch(net, [['eth_call', [{ to: c, data: '0xfc0c546a' }, 'latest']], ['eth_call', [{ to: c, data: '0x4f1f58fd' }, 'latest']], ['eth_call', [{ to: c, data: '0x8b0bc501' }, 'latest']], ['eth_call', [{ to: c, data: '0xe7c2b772' }, 'latest']]]));
-    if (!r || r.some((x) => x instanceof Error || !x || x === '0x')) continue;
+    const r = await safe(chain.rpcBatch(net, [['eth_call', [{ to: c, data: '0xfc0c546a' }, 'latest']], ['eth_call', [{ to: c, data: '0x4f1f58fd' }, 'latest']], ['eth_call', [{ to: c, data: '0x8b0bc501' }, 'latest']], ['eth_call', [{ to: c, data: '0xe7c2b772' }, 'latest']], ['eth_call', [{ to: c, data: '0xd5f39488' }, 'latest']]]));
+    if (!r || r.slice(0, 4).some((x) => x instanceof Error || !x || x === '0x')) continue;
     if (addrFrom(r[0]) !== token) continue;
-    return { address: c, raised: Number(BigInt(r[1])) / 1e18, threshold: Number(BigInt(r[2])) / 1e18, graduated: BigInt(r[3]) === 1n };
+    return { address: c, raised: Number(BigInt(r[1])) / 1e18, threshold: Number(BigInt(r[2])) / 1e18, graduated: BigInt(r[3]) === 1n, creator: r[4] && !(r[4] instanceof Error) && r[4] !== '0x' ? addrFrom(r[4]) : null };
   }
   return null;
 }
@@ -245,6 +245,7 @@ async function run(net, token) {
     verdict,
     official: official ? { name: official.name, symbol: official.symbol } : null,
     contract: { codeBytes: (code.length - 2) / 2, proxy: impl ? { implementation: impl, beacon } : null, owner, renounced, paused, powers },
+    pons: curve ? { curve: curve.address, creator: curve.creator, raised: curve.raised, threshold: curve.threshold, graduated: curve.graduated } : null,
     holders,
     activity: history ? { firstTransfer: history.firstTransfer, transfers: history.transfers, transfers24h: history.transfers24h ?? null } : null,
     dex,

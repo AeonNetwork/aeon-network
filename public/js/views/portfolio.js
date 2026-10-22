@@ -168,12 +168,14 @@ function mount(main, addrParam) {
         <div class="row wrap between mt pf-actions">
           <span class="dim" style="font-size:12px;max-width:640px">${esc(p.note)}</span>
           <div class="row wrap" style="gap:8px">
+            <button class="btn btn-sm btn-primary" id="pfCard">Share card</button>
             <button class="btn btn-sm" id="pfCopy">Copy link</button>
             <button class="btn btn-sm" id="pfWatch">Watch this address</button>
             <a class="btn btn-sm" target="_blank" rel="noopener" href="https://x.com/intent/post?text=${encodeURIComponent(`Tracking a Robinhood Chain stock portfolio on @getaeon_network`)}&url=${encodeURIComponent(location.origin + '/#/portfolio/' + addr)}">Share on X</a>
           </div>
         </div>`;
 
+      $('#pfCard', body)?.addEventListener('click', () => import('../sharecard.js').then((m) => m.openPortfolioCard(p)));
       if (p.history.length > 1) chart = timeChart($('#pfChart', body), p.history, { format: (v) => fmtUsd(v), label: 'Value of current positions over 7 days' });
       else $('#pfChart', body).innerHTML = '<div class="empty">Price history unavailable right now.</div>';
 
