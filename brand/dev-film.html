@@ -1,0 +1,212 @@
+<!doctype html>
+<!-- Big update film (1920x1080, 25.5 s): Dev Checker, whale alerts, portfolio share cards.
+     window.DATA = a live dev check, recent whale trades and a portfolio snapshot.
+     Timed to brand/dev-sound.mjs. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+const x = document.getElementById('c').getContext('2d');
+const D = window.DATA;
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const out = (k) => 1 - (1 - k) ** 3;
+const outBack = (k) => 1 + 2.2 * (k - 1) ** 3 + 1.2 * (k - 1) ** 2;
+const io = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2);
+const lerp = (a, b, k) => a + (b - a) * k;
+const usd = (n) => (Math.abs(n) >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : '$' + (n / 1e3).toFixed(1) + 'K');
+
+const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'].map((d) => new Path2D(d));
+const SPR = new OffscreenCanvas(1040, 940);
+{ const g = SPR.getContext('2d'); g.scale(5, 5); g.translate(-96, -106); g.fillStyle = '#fff'; AE.forEach((p) => g.fill(p)); }
+const mark = (cx, cy, h, a, glow = 0) => { if (a <= 0) return; const w = (208 / 188) * h; x.save(); x.globalAlpha = a; if (glow) (x.shadowColor = '#fff'), (x.shadowBlur = glow); x.drawImage(SPR, cx - w / 2, cy - h / 2, w, h); x.restore(); };
+function text(str, px, py, size, { weight = 800, font = 'Geist', color = '#fff', alpha = 1, spacing = 0, align = 'center', blur = 0, glow = 0 } = {}) {
+  if (alpha <= 0) return;
+  x.save(); x.globalAlpha = alpha;
+  x.font = `${weight} ${size}px "${font}"`; x.letterSpacing = spacing + 'px';
+  x.textAlign = align; x.textBaseline = 'middle'; x.fillStyle = color;
+  if (blur > 0.3) x.filter = `blur(${blur}px)`;
+  if (glow) (x.shadowColor = '#fff'), (x.shadowBlur = glow);
+  x.fillText(str, px, py); x.restore();
+}
+function line(str, px, py, t, t0, t1, size, o = {}) {
+  const k = out(span(t, t0, t0 + 0.8)), a = k * (1 - span(t, t1 - 0.4, t1));
+  text(str, px, py + (1 - k) * 16, size, { ...o, alpha: a * (o.alpha ?? 1), blur: (1 - k) * 12, spacing: lerp((o.spacing ?? 0) + 14, o.spacing ?? 0, k) });
+}
+function box(px, py, w, h, a, { fill = 'rgba(0,0,0,0.85)', stroke = 'rgba(255,255,255,0.32)', ticks = false } = {}) {
+  if (a <= 0) return;
+  x.save(); x.globalAlpha = a; x.fillStyle = fill; x.fillRect(px, py, w, h); x.strokeStyle = stroke; x.lineWidth = 1.5; x.strokeRect(px + 0.5, py + 0.5, w, h);
+  if (ticks) { x.strokeStyle = '#fff'; x.lineWidth = 3; x.beginPath(); x.moveTo(px - 8, py + 14); x.lineTo(px - 8, py - 8); x.lineTo(px + 14, py - 8); x.moveTo(px + w - 14, py + h + 8); x.lineTo(px + w + 8, py + h + 8); x.lineTo(px + w + 8, py + h - 14); x.stroke(); }
+  x.restore();
+}
+const flash = (t, at, len = 0.5, peak = 0.9) => { const k = span(t, at, at + len); if (k > 0 && k < 1) { x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = `rgba(255,255,255,${(1 - k) ** 2 * peak})`; x.fillRect(0, 0, W, H); } };
+const shake = (t, at, amt = 14, len = 0.5) => { const k = span(t, at, at + len); return k > 0 && k < 1 ? Math.sin(t * 90) * amt * (1 - k) ** 2 : 0; };
+
+// background: a slow field of launches, one dot per token the dev launched
+let seed = 132;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const FIELD = Array.from({ length: D.dev.stats.launches }, () => ({ x: rnd() * W, y: rnd() * H, s: 1.5 + rnd() * 2.5, p: rnd() }));
+function field(t, a) {
+  if (a <= 0) return;
+  x.save();
+  for (const d of FIELD) {
+    const tw = 0.4 + 0.6 * Math.abs(Math.sin(t * 0.9 + d.p * 9));
+    x.globalAlpha = a * 0.22 * tw; x.fillStyle = '#fff'; x.beginPath(); x.arc(d.x, (d.y - t * 12 + H) % H, d.s, 0, Math.PI * 2); x.fill();
+  }
+  x.restore();
+}
+
+// ---------- 2 · the dev check ----------
+const ADDR = D.dev.addr;
+const CARDS = [
+  [D.dev.stats.launches, 'TOKENS LAUNCHED', `${D.dev.stats.launches24h} in the last 24 hours`],
+  [D.dev.stats.graduated, 'GRADUATED', `of the last ${D.dev.stats.detailed}`],
+  [D.dev.stats.devMoved, 'MOVED TO OTHER WALLETS', 'tokens sent away by the dev'],
+  [D.dev.stats.dead, 'DIED WITHIN A DAY', `of the last ${D.dev.stats.detailed}`],
+];
+const CARD_AT = [6.0, 6.45, 6.9, 7.35];
+function devCheck(t, a) {
+  if (a <= 0) return;
+  // the wallet types into the search box
+  box(260, 170, 1400, 84, a);
+  const n = Math.floor(ADDR.length * span(t, 6.6 - 1.9, 5.8));
+  text(ADDR.slice(0, n) + (n < ADDR.length && Math.floor(t * 5) % 2 ? '|' : ''), 290, 212, 32, { font: 'Geist Mono', weight: 500, align: 'left', alpha: a });
+  x.save(); x.globalAlpha = a; x.fillStyle = '#fff'; x.fillRect(1460, 170, 200, 84); x.restore();
+  text('Check dev', 1560, 212, 28, { weight: 700, color: '#000', alpha: a });
+  CARDS.forEach(([v, k, sub], i) => {
+    const at = CARD_AT[i], ck = out(span(t, at, at + 0.4));
+    if (ck <= 0) return;
+    const px = 260 + i * 356, py = 300 + (1 - ck) * 30;
+    box(px, py, 332, 220, a * ck, { ticks: true });
+    text(k, px + 24, py + 40, 19, { font: 'Geist Mono', weight: 600, align: 'left', alpha: a * ck * 0.65, spacing: 3 });
+    text(String(Math.round(v * io(span(t, at + 0.1, at + 0.9)))), px + 24, py + 118, 96, { font: 'Geist Mono', weight: 700, align: 'left', alpha: a * ck });
+    text(sub, px + 24, py + 186, 20, { weight: 500, align: 'left', alpha: a * ck * 0.55 });
+  });
+  // the verdict stamps in
+  const s = span(t, 8.6, 8.85);
+  if (s > 0) {
+    const sc = lerp(2.2, 1, outBack(s));
+    x.save(); x.globalAlpha = a * clamp(s * 3); x.translate(CX, 690); x.scale(sc, sc); x.rotate(-0.04);
+    x.strokeStyle = '#fff'; x.lineWidth = 6; x.strokeRect(-300, -62, 600, 124); x.lineWidth = 2; x.strokeRect(-288, -50, 576, 100);
+    x.restore();
+    text('CAUTION', CX, 692, 92 * sc, { weight: 900, alpha: a * clamp(s * 3), spacing: 12 });
+  }
+  D.dev.flags.slice(0, 4).forEach((f, i) => text('! ' + f, 260 + (i % 2) * 720, 820 + Math.floor(i / 2) * 52, 30, { weight: 700, align: 'left', alpha: a * out(span(t, 9.0 + i * 0.15, 9.4 + i * 0.15)) }));
+}
+
+// ---------- 3 · whale alerts ----------
+const TOAST_AT = [10.6, 11.5, 12.4];
+function alerts(t, a) {
+  if (a <= 0) return;
+  text('WHALE ALERTS', 140, 300, 26, { font: 'Geist Mono', weight: 600, align: 'left', alpha: a * 0.7, spacing: 10 });
+  text('Know the moment', 140, 400, 80, { weight: 900, align: 'left', alpha: a });
+  text('a whale trades.', 140, 495, 80, { weight: 900, align: 'left', alpha: a, color: '#7a7a7a' });
+  text('Pick a size and the stocks you care about.', 140, 590, 28, { weight: 500, align: 'left', alpha: a * 0.6 });
+  D.trades.forEach((w, i) => {
+    const at = TOAST_AT[i], k = out(span(t, at, at + 0.45));
+    if (k <= 0) return;
+    const px = 1150 + (1 - k) * 160, py = 250 + i * 190;
+    box(px, py, 640, 160, a * k, { fill: 'rgba(8,8,8,0.96)', stroke: 'rgba(255,255,255,0.45)', ticks: i === TOAST_AT.filter((tt) => t >= tt).length - 1 });
+    text('◆ AEON · WHALE ALERT', px + 28, py + 38, 18, { font: 'Geist Mono', weight: 600, align: 'left', alpha: a * k * 0.6, spacing: 3 });
+    x.save(); x.globalAlpha = a * k; x.fillStyle = w.side === 'buy' ? '#fff' : '#000'; x.strokeStyle = '#fff'; x.lineWidth = 2; x.fillRect(px + 28, py + 70, 96, 50); x.strokeRect(px + 29, py + 71, 94, 48); x.restore();
+    text(w.side.toUpperCase(), px + 76, py + 96, 24, { font: 'Geist Mono', weight: 700, color: w.side === 'buy' ? '#000' : '#fff', alpha: a * k });
+    text(`${usd(w.usd)} of ${w.symbol}`, px + 148, py + 96, 40, { font: 'Geist Mono', weight: 700, align: 'left', alpha: a * k });
+    text(w.wallet, px + 612, py + 38, 18, { font: 'Geist Mono', weight: 500, align: 'right', alpha: a * k * 0.5 });
+  });
+}
+
+// ---------- 5 · the share card ----------
+function shareCard(t, a) {
+  if (a <= 0) return;
+  const k = out(span(t, 16.2, 16.9));
+  const px = 360, py = 230 + (1 - k) * 60, w = 1200, h = 620;
+  box(px, py, w, h, a * k, { fill: 'rgba(12,12,12,0.97)', stroke: 'rgba(255,255,255,0.5)', ticks: true });
+  mark(px + 52, py + 50, 28, a * k);
+  text('AEON NETWORK', px + 82, py + 52, 18, { font: 'Geist Mono', weight: 600, align: 'left', alpha: a * k, spacing: 4 });
+  text('STOCK PORTFOLIO · ROBINHOOD CHAIN', px + w - 40, py + 52, 16, { font: 'Geist Mono', weight: 500, align: 'right', alpha: a * k * 0.5, spacing: 3 });
+  const c = io(span(t, 16.8, 18.4));
+  text('PORTFOLIO VALUE', px + 40, py + 130, 16, { font: 'Geist Mono', weight: 600, align: 'left', alpha: a * k * 0.55, spacing: 3 });
+  text(usd(D.pf.value * c), px + 36, py + 205, 88, { font: 'Geist Mono', weight: 700, align: 'left', alpha: a * k });
+  text(`${D.pf.ch >= 0 ? '▲' : '▼'} ${usd(Math.abs(D.pf.ch))} (${(D.pf.chp * 100).toFixed(2)}%) today`, px + 40, py + 268, 24, { font: 'Geist Mono', weight: 600, align: 'left', alpha: a * span(t, 18.2, 18.6) });
+  // 7-day line draws in
+  const v = D.pf.hist, lo = Math.min(...v), hi = Math.max(...v), L = px + 40, T = py + 310, Wd = 560, Hd = 190;
+  const upto = Math.floor((v.length - 1) * io(span(t, 17.0, 19.0)));
+  if (upto > 0) {
+    x.save(); x.globalAlpha = a * k; x.strokeStyle = '#fff'; x.lineWidth = 3; x.shadowColor = '#fff'; x.shadowBlur = 10; x.beginPath();
+    for (let i = 0; i <= upto; i++) { const X = L + (i / (v.length - 1)) * Wd, Y = T + (1 - (v[i] - lo) / (hi - lo || 1)) * Hd; i ? x.lineTo(X, Y) : x.moveTo(X, Y); }
+    x.stroke(); x.restore();
+  }
+  // top positions
+  D.pf.top.forEach((h, i) => {
+    const at = 17.4 + i * 0.3, rk = out(span(t, at, at + 0.4));
+    const ry = py + 140 + i * 100;
+    text(h.s, px + 680, ry, 32, { font: 'Geist Mono', weight: 700, align: 'left', alpha: a * rk });
+    x.save(); x.globalAlpha = a * rk; x.strokeStyle = 'rgba(255,255,255,0.4)'; x.lineWidth = 1.5; x.strokeRect(px + 820.5, ry - 7.5, 160, 14); x.fillStyle = '#fff'; x.fillRect(px + 821, ry - 7, 159 * h.w * io(span(t, at + 0.1, at + 0.8)), 13); x.restore();
+    text(usd(h.v), px + w - 40, ry, 30, { font: 'Geist Mono', weight: 700, align: 'right', alpha: a * rk });
+  });
+  x.save(); x.globalAlpha = a * span(t, 18.6, 19); x.fillStyle = '#fff'; x.fillRect(px + 40, py + h - 80, 280, 48); x.restore();
+  text('getaeon.network', px + 60, py + h - 56, 22, { font: 'Geist Mono', weight: 600, align: 'left', color: '#000', alpha: a * span(t, 18.6, 19) });
+  // the download button gets pressed
+  const pk = span(t, 20.2, 20.5);
+  const bx = px + w - 280, by = py + h - 84;
+  x.save(); x.globalAlpha = a * span(t, 19.4, 19.8); x.fillStyle = pk > 0 && pk < 1 ? '#bbb' : '#fff'; x.fillRect(bx, by, 240, 56); x.restore();
+  text(pk >= 1 ? 'Saved ✓' : 'Download card', bx + 120, by + 29, 24, { weight: 700, color: '#000', alpha: a * span(t, 19.4, 19.8) });
+}
+
+window.render = (t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  const s = shake(t, 4, 16) + shake(t, 8.6, 14) + shake(t, 16, 18) + shake(t, 22.2, 10);
+  x.setTransform(1, 0, 0, 1, s, s * 0.4);
+
+  // 1 · 0–4: every token has a dev
+  field(t, span(t, 0.2, 1.6) * (1 - span(t, 9.6, 10.2)) * (t < 4 ? 1 : 0.6));
+  line('Every token has a dev.', CX, CY - 40, t, 0.6, 2.4, 96, { weight: 900 });
+  line('Do you know theirs?', CX, CY - 40, t, 2.4, 3.95, 96, { weight: 900 });
+
+  // 2 · 4–10: DEV CHECKER, then a real check
+  if (t >= 4 && t < 10.3) {
+    const k = out(span(t, 4, 4.6)), o = 1 - span(t, 4.9, 5.2);
+    mark(CX, CY - 90, 140 * lerp(1.3, 1, k), k * o, 40);
+    text('DEV CHECKER', CX, CY + 70, 150, { weight: 900, alpha: k * o, spacing: lerp(40, 2, k), glow: 20 * (1 - k) });
+    devCheck(t, span(t, 5.0, 5.3) * (1 - span(t, 9.8, 10.3)));
+  }
+  flash(t, 4, 0.55, 0.95);
+  flash(t, 8.6, 0.35, 0.5);
+
+  // 3 · 10–14: whale alerts
+  if (t >= 10 && t < 14.3) alerts(t, span(t, 10, 10.4) * (1 - span(t, 13.8, 14.3)));
+
+  // 4 · 14–16: and your portfolio?
+  line('And your own portfolio?', CX, CY, t, 14.2, 15.95, 84, { weight: 900 });
+
+  // 5 · 16–22: share cards
+  if (t >= 16 && t < 22.4) {
+    const a = 1 - span(t, 21.8, 22.3);
+    text('PORTFOLIO SHARE CARDS', CX, 140, 30, { font: 'Geist Mono', weight: 600, alpha: a * span(t, 16.1, 16.5), spacing: 12 });
+    shareCard(t, a);
+    line('One tap. Ready to post.', CX, 960, t, 20.4, 22.2, 44, { weight: 800 });
+  }
+  flash(t, 16, 0.55, 0.95);
+
+  // 6 · 22–25.5: live now
+  if (t >= 22.2) {
+    const k = out(span(t, 22.2, 22.9)), fade = 1 - span(t, 24.6, 25.5);
+    mark(CX, CY - 170, 180 * lerp(1.25, 1, k), k * fade, 50);
+    text('LIVE NOW', CX, CY + 20, 34, { font: 'Geist Mono', weight: 600, alpha: span(t, 22.6, 23) * fade, spacing: 16 });
+    text('getaeon.network/dev', CX, CY + 110, 100, { weight: 900, alpha: span(t, 22.9, 23.5) * fade, spacing: -1 });
+    text('Dev Checker  ·  Whale alerts  ·  Share cards', CX, CY + 200, 30, { font: 'Geist Mono', weight: 500, alpha: span(t, 23.4, 24) * fade * 0.6, spacing: 2 });
+  }
+  flash(t, 22.2, 0.6, 0.9);
+  x.setTransform(1, 0, 0, 1, 0, 0);
+};
+document.fonts.ready.then(() => document.fonts.load('600 20px "Geist Mono"')).then(() => document.fonts.load('900 20px "Geist"')).then(() => { window.render(0); window.__ready = true; });
+</script>
+</body>
+</html>
