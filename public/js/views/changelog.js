@@ -3,6 +3,20 @@ import { esc } from '../core.js';
 
 export const RELEASES = [
   {
+    date: 'Oct 23, 2026',
+    tag: 'New',
+    title: 'Smart Money',
+    items: [
+      'The wallets that keep buying Pons tokens among the first 25, before those tokens graduate',
+      'Built from the last ten days of Pons graduations and the first buys on each bonding curve, straight from the chain',
+      'What those wallets bought in the last few hours, and the tokens several of them bought together',
+      'Snipers that buy in the very first trading block are tagged',
+      'Watch any smart wallet in one tap and get an alert when it moves',
+      'The AI Agent can read smart money on its own',
+    ],
+    link: ['#/smart', 'Open Smart Money'],
+  },
+  {
     date: 'Oct 22, 2026',
     tag: 'New',
     title: 'Command Center',

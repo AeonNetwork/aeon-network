@@ -4,6 +4,7 @@ import { getPass } from './ae.js';
 import { startOrb } from '../orb.js';
 
 const PROMPTS = [
+  'What is smart money buying on Pons right now?',
   'Which new tokens are hot on Pons today? Scan the top one and check its dev.',
   'Scan the AE token for risks and explain what you find.',
   'What are the whales buying and selling today? Open the biggest wallet.',
@@ -14,7 +15,7 @@ const PROMPTS = [
   'How do I know a TSLA token is the official Robinhood one?',
 ];
 
-const TOOL_NAMES = { get_network_overview: 'network state', get_block: 'block', get_transaction: 'transaction', get_address: 'address', get_ecosystem: 'ecosystem', get_stock_tokens: 'stock tokens', verify_token: 'token check', scan_token: 'safety scan', get_whales: 'whales', get_portfolio: 'portfolio', get_leaderboard: 'leaderboard', get_network_pulse: 'network pulse', get_aeon_token: 'AE token', get_new_tokens: 'token radar', check_dev: 'dev check' };
+const TOOL_NAMES = { get_network_overview: 'network state', get_block: 'block', get_transaction: 'transaction', get_address: 'address', get_ecosystem: 'ecosystem', get_stock_tokens: 'stock tokens', verify_token: 'token check', scan_token: 'safety scan', get_whales: 'whales', get_portfolio: 'portfolio', get_leaderboard: 'leaderboard', get_network_pulse: 'network pulse', get_aeon_token: 'AE token', get_new_tokens: 'token radar', check_dev: 'dev check', get_smart_money: 'smart money' };
 // Where a step's result lives on the site, so the user can open it.
 const STEP_PAGE = {
   scan_token: (i) => `#/scan/${i.address}`,
@@ -25,6 +26,7 @@ const STEP_PAGE = {
   get_aeon_token: () => '#/ae',
   get_new_tokens: () => '#/radar',
   check_dev: (i) => `#/dev/${i.address}`,
+  get_smart_money: () => '#/smart',
   get_transaction: (i) => `#/explorer/tx/${i.hash}`,
   get_address: (i) => `#/explorer/address/${i.address}`,
   get_block: (i) => (i.block === 'latest' ? null : `#/explorer/block/${i.block}`),

@@ -26,7 +26,7 @@ How you work:
 You are an agent, not just a chat:
 - For a question that needs several facts, call every tool you need (in parallel when they are independent) before answering. Chain them: e.g. find a wallet with get_whales, then open it with get_portfolio.
 - "Is this token safe / a rug / a honeypot?" → scan_token. Report the grade, the serious flags with their evidence, and what the scan cannot prove. Never call a token safe; say what was checked.
-- Whale moves → get_whales. A wallet's stock holdings → get_portfolio. Largest holders → get_leaderboard. "How is the network today" → get_network_pulse. New tokens, launches, "what's hot on Pons" → get_new_tokens, then scan_token the ones worth a closer look. "Who is the dev / is the dev safe / has the dev rugged before?" → check_dev with the creator wallet (a scan of a Pons token gives it as pons.creator). Questions about Aeon's own token (AE, contract 0xb4fc414ac279bb3136e3cf7ec5084846af3bb459 on mainnet) → get_aeon_token; to judge its risk, scan_token that address.
+- Whale moves → get_whales. A wallet's stock holdings → get_portfolio. Largest holders → get_leaderboard. "How is the network today" → get_network_pulse. New tokens, launches, "what's hot on Pons" → get_new_tokens, then scan_token the ones worth a closer look. "What are smart wallets / early buyers buying?" → get_smart_money. "Who is the dev / is the dev safe / has the dev rugged before?" → check_dev with the creator wallet (a scan of a Pons token gives it as pons.creator). Questions about Aeon's own token (AE, contract 0xb4fc414ac279bb3136e3cf7ec5084846af3bb459 on mainnet) → get_aeon_token; to judge its risk, scan_token that address.
 - End answers built from tools with a one-line "Sources:" naming the tools' data sources (RPC, Alchemy, DEX Screener, DefiLlama, CoinGecko, Aeon indexer).
 - Never give price predictions or tell anyone to buy or sell.`;
 
@@ -100,6 +100,11 @@ TOOLS.push(
     input_schema: { type: 'object', properties: { tab: { type: 'string', enum: ['hot', 'new', 'near', 'graduated'], description: 'hot = most ETH raised, new = newest, near = close to graduating, graduated = filled their curve' } }, additionalProperties: false },
   },
   {
+    name: 'get_smart_money',
+    description: 'Smart Money: wallets that were among the first 25 buyers of Pons tokens that later graduated (last ~10 days), how often, and what they bought on Pons in the last ~4 hours, including tokens several of them bought together.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'check_dev',
     description: "Dev Checker: a token creator's full history on Pons. Every token the wallet launched, how many graduated or died, and what the creator did with their own tokens (bought, sold back into the curve, burned, moved to other wallets), with red flags and a risk level. Use the creator wallet, e.g. from get_new_tokens or a scan's pons.creator.",
     input_schema: { type: 'object', properties: { address: { type: 'string', description: 'Creator wallet, 0x + 40 hex' } }, required: ['address'], additionalProperties: false },
@@ -110,8 +115,8 @@ TOOLS.push(
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
   },
 );
-const TOOL_LABEL = { get_network_overview: 'Reading network state', get_block: 'Opening block', get_transaction: 'Decoding transaction', get_address: 'Inspecting address', get_ecosystem: 'Loading ecosystem data', get_stock_tokens: 'Loading tokenized stocks', verify_token: 'Verifying token', scan_token: 'Scanning token contract', get_whales: 'Reading whale trades', get_portfolio: 'Opening portfolio', get_leaderboard: 'Loading leaderboard', get_network_pulse: 'Taking the network pulse', get_aeon_token: 'Reading the AE token', get_new_tokens: 'Reading the token radar', check_dev: 'Checking the dev' };
-const NO_NET = ['get_ecosystem', 'get_stock_tokens', 'verify_token', 'get_whales', 'get_portfolio', 'get_leaderboard', 'get_network_pulse', 'get_aeon_token', 'get_new_tokens', 'check_dev'];
+const TOOL_LABEL = { get_network_overview: 'Reading network state', get_block: 'Opening block', get_transaction: 'Decoding transaction', get_address: 'Inspecting address', get_ecosystem: 'Loading ecosystem data', get_stock_tokens: 'Loading tokenized stocks', verify_token: 'Verifying token', scan_token: 'Scanning token contract', get_whales: 'Reading whale trades', get_portfolio: 'Opening portfolio', get_leaderboard: 'Loading leaderboard', get_network_pulse: 'Taking the network pulse', get_aeon_token: 'Reading the AE token', get_new_tokens: 'Reading the token radar', check_dev: 'Checking the dev', get_smart_money: 'Reading smart money' };
+const NO_NET = ['get_ecosystem', 'get_stock_tokens', 'verify_token', 'get_whales', 'get_portfolio', 'get_leaderboard', 'get_network_pulse', 'get_aeon_token', 'get_new_tokens', 'check_dev', 'get_smart_money'];
 
 const ADDR = /^0x[0-9a-fA-F]{40}$/;
 const HASH = /^0x[0-9a-fA-F]{64}$/;
@@ -207,6 +212,11 @@ async function runTool(name, input) {
       const { pulse } = await import('./pulse.js');
       return (await pulse()).value;
     }
+    case 'get_smart_money': {
+      const { smart } = await import('./smart.js');
+      const d = await smart();
+      return { ...d, wallets: d.wallets.slice(0, 12), buyingNow: d.buyingNow.slice(0, 15), page: 'https://getaeon.network/#/smart' };
+    }
     case 'check_dev': {
       const { devCheck } = await import('./devcheck.js');
       const d = await devCheck(input.address);
@@ -271,6 +281,7 @@ function summarize(name, o) {
       case 'get_portfolio': return `${o.holdings.length} stock positions, ${usd(o.stocksValueUsd)}`;
       case 'get_leaderboard': return o.rows?.length ? `top wallet ${usd(o.rows[0].valueUsd)}` : 'ranking is being built';
       case 'get_network_pulse': return o.headline;
+      case 'get_smart_money': return `${o.wallets.length} smart wallets, ${o.together.length} tokens bought together`;
       case 'check_dev': return `${o.stats.launches} launches, ${o.stats.graduated} graduated · ${o.risk}`;
       case 'get_new_tokens': return `${o.stats.launches24h} launches in 24h, ${o.stats.graduated24h} graduated`;
       case 'get_aeon_token': return `${o.holders ?? '?'} holders, ${o.burnedPct.toFixed(1)}% burned`;

@@ -304,4 +304,6 @@ export const radarStatus = () => lastRun;
 // Shared with the Dev Checker: the factory, the curve selectors, the paced official-RPC client
 // and the decoders, so both stay within the RPC's rate limit together.
 export const PONS = { FACTORY, LAUNCH, SEL, FIRST_BLOCK: 26_840_000 };
+export const radarLaunches = () => [...launches.values()];
+export const radarBlockMs = () => blockMs;
 export { rpc as ponsRpc, calls as ponsCalls, str as decodeString, eth as toEth };

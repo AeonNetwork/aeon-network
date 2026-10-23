@@ -651,3 +651,17 @@ select.input.wh-select { width: auto; min-width: 160px; height: 34px; }
   .cc-fresh a:nth-child(n + 3) { border-top: 1px solid var(--line); }
 }
 @media (prefers-reduced-motion: reduce) { .cc-live, .cc-tick { animation: none; } }
+/* ---------- Smart Money ---------- */
+.sm-together { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.sm-together a { display: grid; gap: 4px; padding: 14px 16px; border-left: 1px solid var(--line); }
+.sm-together a:nth-child(4n + 1) { border-left: 0; }
+.sm-together a:nth-child(n + 5) { border-top: 1px solid var(--line); }
+.sm-together a:hover { background: rgba(255,255,255,0.04); }
+.sm-together small { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sm-together .sm-n { font-size: 12px; color: var(--ink-2); }
+.sm-together .rd-bar { width: 100%; }
+.sm-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.sm-chips .chip { height: 22px; padding: 0 6px; font-size: 11px; }
+.cc-row .num small { display: block; color: var(--ink-3); font-size: 10.5px; }
+@media (max-width: 900px) { .sm-together { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sm-together a:nth-child(odd) { border-left: 0; } .sm-together a:nth-child(even) { border-left: 1px solid var(--line); } .sm-together a:nth-child(n + 3) { border-top: 1px solid var(--line); } }
+@media (max-width: 700px) { .sm-table th:nth-child(4), .sm-table td:nth-child(4), .sm-table th:nth-child(5), .sm-table td:nth-child(5) { display: none; } .sm-table th, .sm-table td { padding: 9px 8px; } }

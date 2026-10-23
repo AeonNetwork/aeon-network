@@ -104,6 +104,10 @@ await check('token radar', async () => {
   const d = (await get('/api/network/mainnet/radar?tab=new&limit=5')).body;
   assert(d.stats && Array.isArray(d.rows), 'bad shape');
 });
+await check('smart money', async () => {
+  const d = (await get('/api/network/mainnet/smart')).body;
+  assert(Array.isArray(d.wallets) && Array.isArray(d.buyingNow), 'bad shape');
+});
 await check('command center', async () => {
   const d = (await get('/api/network/mainnet/command')).body;
   assert(d.chain?.block > 0 && d.stocks && d.whales, 'bad shape');
