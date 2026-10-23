@@ -1,0 +1,187 @@
+<!doctype html>
+<!-- Smart Money film (1920x1080, 25.5 s). Wallets as points, graduated tokens as nodes; the top
+     early buyer lights up its links; the leaderboard; the tokens they are buying together now.
+     window.DATA = a snapshot of /api/network/mainnet/smart. Timed to brand/smart-sound.mjs. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700;800;900&family=Geist+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+const x = document.getElementById('c').getContext('2d');
+const D = window.DATA;
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const out = (k) => 1 - (1 - k) ** 3;
+const outBack = (k) => 1 + 2.2 * (k - 1) ** 3 + 1.2 * (k - 1) ** 2;
+const io = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2);
+const lerp = (a, b, k) => a + (b - a) * k;
+
+const AE = ['M100 290 L138 290 L230 124 L230 110 L200 110 Z', 'M158.3 185 L286 185 L286 215 L141.7 215 Z', 'M200 110 h100 v30 h-100 Z', 'M214 110 h30 v180 h-30 Z', 'M214 260 h86 v30 h-86 Z'].map((d) => new Path2D(d));
+const SPR = new OffscreenCanvas(1040, 940);
+{ const g = SPR.getContext('2d'); g.scale(5, 5); g.translate(-96, -106); g.fillStyle = '#fff'; AE.forEach((p) => g.fill(p)); }
+const mark = (cx, cy, h, a, glow = 0) => { if (a <= 0) return; const w = (208 / 188) * h; x.save(); x.globalAlpha = a; if (glow) (x.shadowColor = '#fff'), (x.shadowBlur = glow); x.drawImage(SPR, cx - w / 2, cy - h / 2, w, h); x.restore(); };
+function text(str, px, py, size, { weight = 800, font = 'Geist', color = '#fff', alpha = 1, spacing = 0, align = 'center', blur = 0, glow = 0 } = {}) {
+  if (alpha <= 0) return;
+  x.save(); x.globalAlpha = alpha;
+  x.font = `${weight} ${size}px "${font}"`; x.letterSpacing = spacing + 'px';
+  x.textAlign = align; x.textBaseline = 'middle'; x.fillStyle = color;
+  if (blur > 0.3) x.filter = `blur(${blur}px)`;
+  if (glow) (x.shadowColor = '#fff'), (x.shadowBlur = glow);
+  x.fillText(str, px, py); x.restore();
+}
+function line(str, px, py, t, t0, t1, size, o = {}) {
+  const k = out(span(t, t0, t0 + 0.8)), a = k * (1 - span(t, t1 - 0.4, t1));
+  text(str, px, py + (1 - k) * 16, size, { ...o, alpha: a * (o.alpha ?? 1), blur: (1 - k) * 12, spacing: lerp((o.spacing ?? 0) + 14, o.spacing ?? 0, k) });
+}
+function box(px, py, w, h, a, { fill = 'rgba(0,0,0,0.88)', stroke = 'rgba(255,255,255,0.32)', ticks = false } = {}) {
+  if (a <= 0) return;
+  x.save(); x.globalAlpha = a; x.fillStyle = fill; x.fillRect(px, py, w, h); x.strokeStyle = stroke; x.lineWidth = 1.5; x.strokeRect(px + 0.5, py + 0.5, w, h);
+  if (ticks) { x.strokeStyle = '#fff'; x.lineWidth = 3; x.beginPath(); x.moveTo(px - 8, py + 14); x.lineTo(px - 8, py - 8); x.lineTo(px + 14, py - 8); x.moveTo(px + w - 14, py + h + 8); x.lineTo(px + w + 8, py + h + 8); x.lineTo(px + w + 8, py + h - 14); x.stroke(); }
+  x.restore();
+}
+const flash = (t, at, len = 0.5, peak = 0.9) => { const k = span(t, at, at + len); if (k > 0 && k < 1) { x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = `rgba(255,255,255,${(1 - k) ** 2 * peak})`; x.fillRect(0, 0, W, H); } };
+const shake = (t, at, amt = 14, len = 0.5) => { const k = span(t, at, at + len); return k > 0 && k < 1 ? Math.sin(t * 90) * amt * (1 - k) ** 2 : 0; };
+
+// ---------- the network: wallets (dots) and graduated tokens (rings) ----------
+let seed = 89;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const GRADS = Array.from({ length: D.window.graduated }, (_, i) => {
+  const a = (i / D.window.graduated) * Math.PI * 2 + rnd() * 0.05, r = 300 + rnd() * 140;
+  return { x: CX + Math.cos(a) * r * 1.55, y: CY + Math.sin(a) * r, p: rnd() };
+});
+const WALLETS = Array.from({ length: 260 }, () => ({ x: rnd() * W, y: rnd() * H, s: 1.2 + rnd() * 2, p: rnd() }));
+const HUB = { x: CX, y: CY };
+const HITS = GRADS.map((g, i) => i).filter((i) => (i * 7) % 3 === 0).slice(0, D.wallets[0].hits); // the top wallet's early entries
+function network(t, a, linkK) {
+  if (a <= 0) return;
+  x.save();
+  for (const w of WALLETS) { x.globalAlpha = a * 0.18 * (0.5 + 0.5 * Math.sin(t * 1.3 + w.p * 9)); x.fillStyle = '#fff'; x.beginPath(); x.arc(w.x, w.y, w.s, 0, Math.PI * 2); x.fill(); }
+  // links from the top wallet to its graduated tokens, drawn one by one
+  const n = Math.floor(HITS.length * linkK);
+  x.strokeStyle = '#fff';
+  HITS.slice(0, n).forEach((gi, k) => {
+    const g = GRADS[gi], fresh = k === n - 1;
+    x.globalAlpha = a * (fresh ? 0.9 : 0.35); x.lineWidth = fresh ? 2.5 : 1.2;
+    if (fresh) { x.shadowColor = '#fff'; x.shadowBlur = 14; }
+    x.beginPath(); x.moveTo(HUB.x, HUB.y); x.lineTo(g.x, g.y); x.stroke(); x.shadowBlur = 0;
+  });
+  GRADS.forEach((g, i) => {
+    const lit = HITS.slice(0, n).includes(i);
+    x.globalAlpha = a * (lit ? 1 : 0.4); x.lineWidth = lit ? 2.5 : 1.5; x.strokeStyle = '#fff';
+    x.beginPath(); x.arc(g.x, g.y, lit ? 9 : 6, 0, Math.PI * 2); x.stroke();
+    if (lit) { x.fillStyle = '#fff'; x.beginPath(); x.arc(g.x, g.y, 4, 0, Math.PI * 2); x.fill(); }
+  });
+  x.restore();
+}
+
+// ---------- leaderboard ----------
+const ROW_AT = [10.3, 10.75, 11.2, 11.65, 12.1];
+function board(t, a) {
+  if (a <= 0) return;
+  const px = 360, py = 210, w = 1200;
+  box(px, py, w, 90 + 5 * 120, a, { ticks: true });
+  text('SMART WALLETS · EARLY IN GRADUATED TOKENS', px + 34, py + 46, 22, { font: 'Geist Mono', weight: 600, align: 'left', alpha: a * 0.65, spacing: 5 });
+  const max = D.wallets[0].hits;
+  D.wallets.slice(0, 5).forEach((wl, i) => {
+    const at = ROW_AT[i], k = out(span(t, at, at + 0.45));
+    if (k <= 0) return;
+    const y = py + 90 + i * 120, dx = (1 - k) * 50;
+    x.save(); x.globalAlpha = a * k; x.strokeStyle = 'rgba(255,255,255,0.16)'; x.beginPath(); x.moveTo(px, y); x.lineTo(px + w, y); x.stroke(); x.restore();
+    text(String(i + 1), px + 50 + dx, y + 60, 34, { font: 'Geist Mono', weight: 700, alpha: a * k * 0.5 });
+    text(wl.a, px + 100 + dx, y + 46, 34, { font: 'Geist Mono', weight: 700, align: 'left', alpha: a * k });
+    text(wl.tokens.slice(0, 4).join(' · '), px + 100 + dx, y + 86, 20, { font: 'Geist Mono', weight: 500, align: 'left', alpha: a * k * 0.5 });
+    const fill = io(span(t, at + 0.15, at + 0.9)) * (wl.hits / max);
+    x.save(); x.globalAlpha = a * k; x.strokeStyle = 'rgba(255,255,255,0.4)'; x.lineWidth = 1.5; x.strokeRect(px + 560.5, y + 52.5, 360, 16); x.fillStyle = '#fff'; x.fillRect(px + 561, y + 53, 359 * fill, 15); x.restore();
+    text(String(Math.round(wl.hits * io(span(t, at + 0.15, at + 0.9)))), px + w - 150, y + 60, 54, { font: 'Geist Mono', weight: 700, align: 'right', alpha: a * k });
+    text('graduated', px + w - 34, y + 64, 20, { font: 'Geist Mono', weight: 500, align: 'right', alpha: a * k * 0.55 });
+  });
+}
+
+// ---------- bought together ----------
+const CARD_AT = [16.6, 17.1, 17.6, 18.1];
+function together(t, a) {
+  if (a <= 0) return;
+  text('BOUGHT TOGETHER · RIGHT NOW', CX, 200, 30, { font: 'Geist Mono', weight: 600, alpha: a * span(t, 16.2, 16.6), spacing: 12 });
+  const cards = D.together.slice(0, 4);
+  const cw = 380, gap = 40, total = cards.length * cw + (cards.length - 1) * gap, x0 = CX - total / 2;
+  cards.forEach((c, i) => {
+    const at = CARD_AT[i], k = outBack(span(t, at, at + 0.5)), ka = span(t, at, at + 0.2);
+    if (ka <= 0) return;
+    const px = x0 + i * (cw + gap), py = 330 + (1 - k) * 60;
+    // wallets converging into the card
+    for (let j = 0; j < c.w; j++) {
+      const sx = px + cw / 2 + Math.cos(j * 2.1 + i) * 520, sy = py - 40 + Math.sin(j * 2.1 + i) * 260;
+      const m = io(span(t, at - 0.6, at + 0.1));
+      const ex = lerp(sx, px + 60 + j * 70, m), ey = lerp(sy, py + 300, m);
+      x.save(); x.globalAlpha = a * (1 - span(t, at + 0.1, at + 0.6)) * 0.9; x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(sx, sy); x.lineTo(ex, ey); x.stroke(); x.restore();
+    }
+    box(px, py, cw, 360, a * ka, { fill: 'rgba(10,10,10,0.95)', stroke: 'rgba(255,255,255,0.5)', ticks: i === 0 });
+    text(c.s, px + 30, py + 60, 44, { font: 'Geist Mono', weight: 700, align: 'left', alpha: a * ka });
+    text((c.n || '').slice(0, 24), px + 30, py + 106, 22, { weight: 500, align: 'left', alpha: a * ka * 0.55 });
+    text(String(c.w), px + 30, py + 196, 96, { font: 'Geist Mono', weight: 700, align: 'left', alpha: a * ka, glow: 12 });
+    text('SMART WALLETS', px + 30, py + 262, 20, { font: 'Geist Mono', weight: 600, align: 'left', alpha: a * ka * 0.6, spacing: 4 });
+    const pf = io(span(t, at + 0.3, at + 1.2)) * (c.p || 0);
+    x.save(); x.globalAlpha = a * ka; x.strokeStyle = 'rgba(255,255,255,0.4)'; x.lineWidth = 1.5; x.strokeRect(px + 30.5, py + 300.5, cw - 60, 12); x.fillStyle = '#fff'; x.fillRect(px + 31, py + 301, (cw - 61) * pf, 11); x.restore();
+    text(`${c.eth.toFixed(3)} ETH in · bonding ${Math.round((c.p || 0) * 100)}%`, px + 30, py + 336, 18, { font: 'Geist Mono', weight: 500, align: 'left', alpha: a * ka * 0.55 });
+  });
+  text(`${D.buys} buys from smart wallets in the last few hours`, CX, 820, 32, { weight: 700, alpha: a * span(t, 18.8, 19.3) });
+  text('Read from the chain. Not financial advice.', CX, 880, 22, { font: 'Geist Mono', weight: 500, alpha: a * span(t, 19.4, 19.8) * 0.5, spacing: 2 });
+}
+
+window.render = (t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  const s = shake(t, 4, 16) + shake(t, 16, 18) + shake(t, 22.2, 10);
+  x.setTransform(1, 0, 0, 1, s, s * 0.4);
+
+  // 1 · 0–4: some wallets are always early
+  network(t, span(t, 0.2, 1.6) * (t < 4 ? 0.7 : 1) * (1 - span(t, 9.6, 10.2)), t < 4 ? 0 : io(span(t, 5.2, 9.0)));
+  line('Some wallets are always early.', CX, CY - 40, t, 0.6, 2.6, 90, { weight: 900 });
+  line('Every time.', CX, CY - 40, t, 2.6, 3.95, 110, { weight: 900 });
+
+  // 2 · 4–10: SMART MONEY, then the top wallet's links light up
+  if (t >= 4 && t < 10.3) {
+    const k = out(span(t, 4, 4.6)), o = 1 - span(t, 5.0, 5.4);
+    x.save(); x.globalAlpha = k * o * 0.8; x.fillStyle = '#000'; x.fillRect(0, CY - 150, W, 300); x.restore();
+    mark(CX, CY - 70, 120 * lerp(1.3, 1, k), k * o, 40);
+    text('SMART MONEY', CX, CY + 70, 150, { weight: 900, alpha: k * o, spacing: lerp(40, 2, k), glow: 20 * (1 - k) });
+    const ha = span(t, 5.3, 5.7) * (1 - span(t, 9.7, 10.2));
+    x.save(); x.globalAlpha = ha; x.fillStyle = '#fff'; x.shadowColor = '#fff'; x.shadowBlur = 30; x.beginPath(); x.arc(HUB.x, HUB.y, 14, 0, Math.PI * 2); x.fill(); x.restore();
+    box(CX - 300, CY - 110, 600, 220, ha, { fill: 'rgba(0,0,0,0.9)', stroke: 'rgba(255,255,255,0.5)', ticks: true });
+    text(D.wallets[0].a, CX, CY - 60, 34, { font: 'Geist Mono', weight: 700, alpha: ha });
+    text(String(Math.round(D.wallets[0].hits * io(span(t, 5.2, 9.0)))), CX, CY + 15, 86, { font: 'Geist Mono', weight: 700, alpha: ha, glow: 14 });
+    text(`EARLY IN GRADUATED TOKENS · AVG ENTRY #${D.wallets[0].rank}`, CX, CY + 80, 18, { font: 'Geist Mono', weight: 600, alpha: ha * 0.65, spacing: 3 });
+    text(`${D.window.graduated} graduated tokens traced to their first 25 buyers`, CX, 980, 26, { font: 'Geist Mono', weight: 500, alpha: ha * 0.7, spacing: 1 });
+  }
+  flash(t, 4, 0.55, 0.95);
+
+  // 3 · 10–14: the leaderboard
+  if (t >= 10 && t < 14.3) board(t, span(t, 10, 10.4) * (1 - span(t, 13.8, 14.3)));
+
+  // 4 · 14–16: what are they buying now?
+  line('So what are they buying now?', CX, CY, t, 14.2, 15.95, 84, { weight: 900 });
+
+  // 5 · 16–22: bought together
+  if (t >= 16 && t < 22.4) together(t, 1 - span(t, 21.8, 22.3));
+  flash(t, 16, 0.55, 0.95);
+
+  // 6 · 22–25.5: live now
+  if (t >= 22.2) {
+    const k = out(span(t, 22.2, 22.9)), fade = 1 - span(t, 24.6, 25.5);
+    mark(CX, CY - 170, 180 * lerp(1.25, 1, k), k * fade, 50);
+    text('LIVE NOW', CX, CY + 20, 34, { font: 'Geist Mono', weight: 600, alpha: span(t, 22.6, 23) * fade, spacing: 16 });
+    text('getaeon.network/smart', CX, CY + 110, 100, { weight: 900, alpha: span(t, 22.9, 23.5) * fade, spacing: -1 });
+    text('Smart Money  ·  Robinhood Chain  ·  read from the chain', CX, CY + 200, 30, { font: 'Geist Mono', weight: 500, alpha: span(t, 23.4, 24) * fade * 0.6, spacing: 2 });
+  }
+  flash(t, 22.2, 0.6, 0.9);
+  x.setTransform(1, 0, 0, 1, 0, 0);
+};
+document.fonts.ready.then(() => document.fonts.load('600 20px "Geist Mono"')).then(() => document.fonts.load('900 20px "Geist"')).then(() => { window.render(0); window.__ready = true; });
+</script>
+</body>
+</html>
